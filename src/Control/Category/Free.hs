@@ -42,6 +42,7 @@ may be defined up to isomorphism as
   , GADTs
   , LambdaCase
   , MultiParamTypeClasses
+  , PatternSynonyms
   , PolyKinds
   , QuantifiedConstraints
   , RankNTypes
@@ -50,6 +51,7 @@ may be defined up to isomorphism as
 
 module Control.Category.Free
   ( Path (..)
+  , pattern (:<<)
   , FoldPath (..)
   , CFunctor (..)
   , CFoldable (..)
@@ -79,10 +81,14 @@ in
 data Path p x y where
   Done :: Path p x x
   (:>>) :: p x y -> Path p y z -> Path p x z
+{- | The snoc pattern for right-to-left composition.-}
+pattern (:<<) :: Path p y z -> p x y -> Path p x z
+pattern ps :<< p = p :>> ps
 infixr 7 :>>
 deriving instance (forall x y. Show (p x y)) => Show (Path p x y)
 instance x ~ y => Semigroup (Path p x y) where
   (<>) = (>>>)
+infixl 7 :<<
 instance x ~ y => Monoid (Path p x y) where
   mempty = Done
   mappend = (>>>)
@@ -103,7 +109,7 @@ instance CFoldable Path where
   ctoList f (p :>> ps) = f p : ctoList f ps
 instance CFree Path where csingleton p = p :>> Done
 
-{- | Encodes a `Path` as its `cfoldMap` function.-}
+{- | Encodes a path as its `cfoldMap` function.-}
 newtype FoldPath p x y = FoldPath
   {getFoldPath :: forall q. Category q => (forall x y. p x y -> q x y) -> q x y}
 instance Category (FoldPath p) where
