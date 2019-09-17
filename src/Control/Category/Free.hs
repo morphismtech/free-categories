@@ -66,6 +66,15 @@ import Prelude hiding (id, (.))
 
 {- | A `Path` with steps in @p@ is a singly linked list of
 "type-aligned" constructions of @p@.
+
+>>> :{
+let
+  path :: Path (->) String Int
+  path = length :>> (\x -> x^2) :>> Done
+in
+  cfold path "hello"
+:}
+25
 -}
 data Path p x y where
   Done :: Path p x x
