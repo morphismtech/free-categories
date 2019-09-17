@@ -16,7 +16,7 @@ Consider the category of Haskell "quivers" with
 
 Now, consider the subcategory of Haskell `Category`s with
 
-* constrained objects @Category c => c@
+* constrained objects `Category` @c => c@
 * morphisms are functorial terms with
   * @t :: (Category c, Category d) => c x y -> d x y@
 
