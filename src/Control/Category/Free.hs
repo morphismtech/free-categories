@@ -112,6 +112,11 @@ instance CFree Path where csingleton p = p :>> Done
 {- | Encodes a path as its `cfoldMap` function.-}
 newtype FoldPath p x y = FoldPath
   {getFoldPath :: forall q. Category q => (forall x y. p x y -> q x y) -> q x y}
+instance x ~ y => Semigroup (FoldPath p x y) where
+  (<>) = (>>>)
+instance x ~ y => Monoid (FoldPath p x y) where
+  mempty = id
+  mappend = (>>>)
 instance Category (FoldPath p) where
   id = FoldPath $ \ _ -> id
   FoldPath g . FoldPath f = FoldPath $ \ k -> g k . f k
