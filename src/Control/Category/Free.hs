@@ -7,7 +7,7 @@ Stability: experimental
 
 Consider the category of Haskell "quivers" with
 
-* objects are types
+* objects are types of higher kind
   * @p :: k -> k -> Type@
 * morphisms are terms of @RankNType@,
   * @forall x y. p x y -> q x y@
@@ -17,11 +17,10 @@ Consider the category of Haskell "quivers" with
 Now, consider the subcategory of Haskell `Category`s with
 
 * constrained objects `Category` @c => c@
-* morphisms are functorial terms with
+* morphisms act functorially
   * @t :: (Category c, Category d) => c x y -> d x y@
-
-prop> t id = id
-prop> t (g . f) = t g . t f
+  * @t id = id@
+  * @t (g . f) = t g . t f@
 
 The free category functor from quivers to `Category`s
 may be defined up to isomorphism as
@@ -53,6 +52,7 @@ module Control.Category.Free
   ( Path (..)
   , pattern (:<<)
   , FoldPath (..)
+  , Category (..)
   , CFunctor (..)
   , CFoldable (..)
   , CFree (..)
@@ -60,7 +60,6 @@ module Control.Category.Free
   , EndoL (..)
   , EndoR (..)
   , KCat (..)
-  , Category (..)
   ) where
 
 import Control.Category
@@ -81,14 +80,14 @@ in
 data Path p x y where
   Done :: Path p x x
   (:>>) :: p x y -> Path p y z -> Path p x z
+infixr 7 :>>
 {- | The snoc pattern for right-to-left composition.-}
 pattern (:<<) :: Path p y z -> p x y -> Path p x z
 pattern ps :<< p = p :>> ps
-infixr 7 :>>
+infixl 7 :<<
 deriving instance (forall x y. Show (p x y)) => Show (Path p x y)
 instance x ~ y => Semigroup (Path p x y) where
   (<>) = (>>>)
-infixl 7 :<<
 instance x ~ y => Monoid (Path p x y) where
   mempty = Done
   mappend = (>>>)
@@ -163,21 +162,21 @@ class CFunctor c => CFoldable c where
   -}
   cfoldl :: (forall x y z . q x y -> p y z -> q x z) -> q x y -> c p y z -> q x z
   cfoldl (?) q c = getEndoL (cfoldMap (\ x -> EndoL (\ y -> y ? x)) c) q
-  {- | Combine the elements of a structure using a `Monoid`.-}
+  {- | Map each element of the structure to a `Monoid`,
+  and combine the results.-}
   ctoMonoid :: Monoid m => (forall x y. p x y -> m) -> c p x y -> m
   ctoMonoid f = getKCat . cfoldMap (KCat . f)
-  {- | Combine the elements of a structure into a list.-}
+  {- | Map each element of the structure, and combine the results in a list.-}
   ctoList :: (forall x y. p x y -> a) -> c p x y -> [a]
   ctoList f = ctoMonoid (pure . f)
 
 {- | Unpacking the definition of a left adjoint to the forgetful functor
-from `Category`s to quivers, for any function
+from `Category`s to quivers, there must be a function `csingleton`,
+such that any function
 
-  @f :: Category d => p x y -> d x y@
+@f :: Category d => p x y -> d x y@
 
-there must be a function `csingleton` factoring @f@ uniquely through
-the free category. The function taking @f@ to the unique functor from
-@d@ to the free category has the same type as `cfoldMap` and hence must be it.
+factors uniquely through @c p x y@ as
 
 prop> cfoldMap f . csingleton = f
 -}
