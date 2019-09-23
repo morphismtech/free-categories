@@ -55,11 +55,13 @@ module Control.Category.Free
   , Category (..)
   , CFunctor (..)
   , CFoldable (..)
+  , CTraversable (..)
   , CFree (..)
   , toPath
   , EndoL (..)
   , EndoR (..)
-  , KCat (..)
+  , MCat (..)
+  , ApCat (..)
   ) where
 
 import Control.Category
@@ -106,6 +108,11 @@ instance CFoldable Path where
   ctoMonoid f (p :>> ps) = f p <> ctoMonoid f ps
   ctoList _ Done = []
   ctoList f (p :>> ps) = f p : ctoList f ps
+  ctraverse_ _ Done = pure id
+  ctraverse_ f (p :>> ps) = (>>>) <$> f p <*> ctraverse_ f ps
+instance CTraversable Path where
+  ctraverse _ Done = pure Done
+  ctraverse f (p :>> ps) = (:>>) <$> f p <*> ctraverse f ps
 instance CFree Path where csingleton p = p :>> Done
 
 {- | Encodes a path as its `cfoldMap` function.-}
@@ -121,6 +128,8 @@ instance Category (FoldPath p) where
   FoldPath g . FoldPath f = FoldPath $ \ k -> g k . f k
 instance CFunctor FoldPath where cmap f = cfoldMap (csingleton . f)
 instance CFoldable FoldPath where cfoldMap k (FoldPath f) = f k
+instance CTraversable FoldPath where
+  ctraverse f = getApCat . cfoldMap (ApCat . fmap csingleton . f)
 instance CFree FoldPath where csingleton p = FoldPath $ \ k -> k p
 
 {- | A functor from quivers to `Category`s.
@@ -165,10 +174,21 @@ class CFunctor c => CFoldable c where
   {- | Map each element of the structure to a `Monoid`,
   and combine the results.-}
   ctoMonoid :: Monoid m => (forall x y. p x y -> m) -> c p x y -> m
-  ctoMonoid f = getKCat . cfoldMap (KCat . f)
+  ctoMonoid f = getMCat . cfoldMap (MCat . f)
   {- | Map each element of the structure, and combine the results in a list.-}
   ctoList :: (forall x y. p x y -> a) -> c p x y -> [a]
   ctoList f = ctoMonoid (pure . f)
+  {- | -}
+  ctraverse_
+    :: (Applicative m, Category q)
+    => (forall x y. p x y -> m (q x y)) -> c p x y -> m (q x y)
+  ctraverse_ f = getApCat . cfoldMap (ApCat . f)
+
+{- | Generalizing `Traversable` to `Category`s.-}
+class CFoldable c => CTraversable c where
+  ctraverse
+    :: Applicative m
+    => (forall x y. p x y -> m (q x y)) -> c p x y -> m (c q x y)
 
 {- | Unpacking the definition of a left adjoint to the forgetful functor
 from `Category`s to quivers, there must be a function `csingleton`,
@@ -180,7 +200,7 @@ factors uniquely through @c p x y@ as
 
 prop> cfoldMap f . csingleton = f
 -}
-class CFoldable c => CFree c where csingleton :: p x y -> c p x y
+class CTraversable c => CFree c where csingleton :: p x y -> c p x y
 
 {- | `toPath` collapses any `CFoldable` into a `CFree`.
 It is the unique isomorphism which exists
@@ -189,20 +209,28 @@ between any two `CFree` functors.
 toPath :: (CFoldable c, CFree path) => c p x y -> path p x y
 toPath = cfoldMap csingleton
 
--- | Used in the default definition of `cfoldr`.
+{- | Used in the default definition of `cfoldr`.-}
 newtype EndoR p y x = EndoR {getEndoR :: forall z. p x z -> p y z}
 instance Category (EndoR p) where
   id = EndoR id
   EndoR f1 . EndoR f2 = EndoR (f2 . f1)
 
--- | Used in the default definition of `cfoldr`.
+{- | Used in the default definition of `cfoldr`.-}
 newtype EndoL p x y = EndoL {getEndoL :: forall w . p w x -> p w y}
 instance Category (EndoL p) where
   id = EndoL id
   EndoL f1 . EndoL f2 = EndoL (f1 . f2)
 
--- | The constant category, used in the default definition of `ctoMonoid`.
-newtype KCat m x y = KCat { getKCat :: m } deriving (Eq, Ord, Show)
-instance Monoid m => Category (KCat m) where
-  id = KCat mempty
-  KCat m2 . KCat m1 = KCat (m1 <> m2)
+{- | Turn a `Monoid` into a `Category`,
+used in the default definition of `ctoMonoid`.-}
+newtype MCat m x y = MCat {getMCat :: m} deriving (Eq, Ord, Show)
+instance Monoid m => Category (MCat m) where
+  id = MCat mempty
+  MCat g . MCat f = MCat (f <> g)
+
+{- | Turn an `Applicative` over a `Category` into a `Category`,
+used in the default definition of `ctraverse_`.-}
+newtype ApCat m c x y = ApCat {getApCat :: m (c x y)} deriving (Eq, Ord, Show)
+instance (Applicative m, Category c) => Category (ApCat m c) where
+  id = ApCat (pure id)
+  ApCat g . ApCat f = ApCat ((.) <$> g <*> f)
