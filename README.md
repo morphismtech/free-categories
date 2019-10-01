@@ -11,7 +11,7 @@ Consider the category of Haskell "quivers" with
 
 Now, consider the subcategory of Haskell `Category`s with
 
-* constrained objects `Category` `c => c`
+* constrained objects `Category c => c`
 * morphisms act functorially
   * `t :: (Category c, Category d) => c x y -> d x y`
   * `t id = id`
@@ -24,8 +24,8 @@ may be defined up to isomorphism as
 
 * the functor `FoldPath` of categorical folds
 
-* abstractly as `CFree` `path => path`, the class of
+* abstractly as `CFree path => path`, the class of
   left adjoints to the functor which
-  forgets the constraint on `Category` `c => c`
+  forgets the constraint on `Category c => c`
 
 * or as any isomorphic data structure
