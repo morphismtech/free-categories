@@ -22,8 +22,8 @@ Now, consider the subcategory of Haskell `Category`s with
   * @t id = id@
   * @t (g . f) = t g . t f@
 
-The free category functor from quivers to `Category`s
-may be defined up to isomorphism as
+The [free category functor](https://ncatlab.org/nlab/show/free+category)
+from quivers to `Category`s may be defined up to isomorphism as
 
 * the functor `Path` of type-aligned lists
 
