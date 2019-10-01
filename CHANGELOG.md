@@ -1,5 +1,5 @@
 # Revision history for free-categories
 
-## 0.1.0.0 -- YYYY-mm-dd
+## 0.1.0.0 -- 2019-10-01
 
-* First version. Released on an unsuspecting world.
+* First version.
