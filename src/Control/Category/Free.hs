@@ -178,7 +178,8 @@ class CFunctor c => CFoldable c where
   {- | Map each element of the structure, and combine the results in a list.-}
   ctoList :: (forall x y. p x y -> a) -> c p x y -> [a]
   ctoList f = ctoMonoid (pure . f)
-  {- | -}
+  {- | Map each element of a structure to an `Applicative` on a `Category`,
+  evaluate from left to right, and combine the results.-}
   ctraverse_
     :: (Applicative m, Category q)
     => (forall x y. p x y -> m (q x y)) -> c p x y -> m (q x y)
@@ -186,6 +187,8 @@ class CFunctor c => CFoldable c where
 
 {- | Generalizing `Traversable` to `Category`s.-}
 class CFoldable c => CTraversable c where
+  {- | Map each element of a structure to an `Applicative` on a quiver,
+  evaluate from left to right, and collect the results.-}
   ctraverse
     :: Applicative m
     => (forall x y. p x y -> m (q x y)) -> c p x y -> m (c q x y)
