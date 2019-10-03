@@ -138,8 +138,10 @@ instance CFree FoldPath where csingleton p = FoldPath $ \ k -> k p
 
 {- | A functor from quivers to `Category`s.
 
-prop> cmap _ id = id
-prop> cmap f (c >>> c') = f c >>> f c'
+prop> cmap id = id
+prop> cmap (g . f) = cmap g . cmap f
+prop> cmap f id = id
+prop> cmap f (d . c) = cmap f d . cmap f c
 -}
 class (forall p. Category (c p)) => CFunctor c where
   cmap :: (forall x y. p x y -> q x y) -> c p x y -> c q x y
