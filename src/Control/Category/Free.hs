@@ -58,10 +58,14 @@ module Control.Category.Free
   , CTraversable (..)
   , CFree (..)
   , toPath
+  , creverse
+  , beforeAll
+  , afterAll
   , EndoL (..)
   , EndoR (..)
   , MCat (..)
   , ApCat (..)
+  , OpCat (..)
   ) where
 
 import Control.Category
@@ -212,6 +216,22 @@ between any two `CFree` functors.
 toPath :: (CFoldable c, CFree path) => c p x y -> path p x y
 toPath = cfoldMap csingleton
 
+{- | Reverse all the arrows in a path. -}
+creverse :: (CFoldable c, CFree path) => c p x y -> path (OpCat p) y x
+creverse = getOpCat . cfoldMap (OpCat . csingleton . OpCat)
+
+{- | Insert a given endomorphism before each step. -}
+beforeAll
+  :: (CFoldable c, CFree path)
+  => (forall x. p x x) -> c p x y -> path p x y
+beforeAll sep = cfoldMap (\p -> csingleton sep >>> csingleton p)
+
+{- | Insert a given endomorphism before each step. -}
+afterAll
+  :: (CFoldable c, CFree path)
+  => (forall x. p x x) -> c p x y -> path p x y
+afterAll sep = cfoldMap (\p -> csingleton p >>> csingleton sep)
+
 {- | Used in the default definition of `cfoldr`.-}
 newtype EndoR p y x = EndoR {getEndoR :: forall z. p x z -> p y z}
 instance Category (EndoR p) where
@@ -237,3 +257,10 @@ newtype ApCat m c x y = ApCat {getApCat :: m (c x y)} deriving (Eq, Ord, Show)
 instance (Applicative m, Category c) => Category (ApCat m c) where
   id = ApCat (pure id)
   ApCat g . ApCat f = ApCat ((.) <$> g <*> f)
+
+{- | Reverse all the arrows in a quiver. If @c@ is a `Category`
+then so is @OpCat c@.-}
+newtype OpCat c x y = OpCat {getOpCat :: c y x} deriving (Eq, Ord, Show)
+instance Category c => Category (OpCat c) where
+  id = OpCat id
+  OpCat g . OpCat f = OpCat (f . g)
