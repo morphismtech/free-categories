@@ -268,16 +268,14 @@ instance (Applicative m, Category c) => Category (ApCat m c) where
 instance Functor m => CFunctor (ApCat m) where
   cmap f (ApCat m) = ApCat (f <$> m)
 
-{- | Reverse all the arrows in a quiver. If @c@ is a `Category`
-then so is @Op c@.-}
+{- | Reverse all the arrows in a quiver.-}
 newtype Op c x y = Op {getOp :: c y x} deriving (Eq, Ord, Show)
 instance Category c => Category (Op c) where
   id = Op id
   Op g . Op f = Op (f . g)
 instance CFunctor Op where cmap f = Op . f . getOp
 
-{- | Turn all arrows in a quiver into bidirectional edges.
-If @c@ is a `Category` then so is `Iso`.-}
+{- | Turn all arrows in a quiver into bidirectional edges.-}
 data Iso c x y = Iso
   { up :: c x y
   , down :: c y x
