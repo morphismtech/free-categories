@@ -136,14 +136,18 @@ instance CTraversable FoldPath where
   ctraverse f = getApCat . cfoldMap (ApCat . fmap csingleton . f)
 instance CFree FoldPath where csingleton p = FoldPath $ \ k -> k p
 
-{- | A functor from quivers to `Category`s.
+{- | An endfunctor of quivers.
 
 prop> cmap id = id
 prop> cmap (g . f) = cmap g . cmap f
+
+A functors from quivers to `Category`s
+is @(CFunctor c, forall p. Category (c p)@ with
+
 prop> cmap f id = id
-prop> cmap f (d . c) = cmap f d . cmap f c
+prop> cmap f (q . p) = cmap f q . cmap f p
 -}
-class (forall p. Category (c p)) => CFunctor c where
+class CFunctor c where
   cmap :: (forall x y. p x y -> q x y) -> c p x y -> c q x y
 
 {- | Generalizing `Foldable` from `Monoid`s to `Category`s.
@@ -209,7 +213,8 @@ factors uniquely through @c p x y@ as
 
 prop> cfoldMap f . csingleton = f
 -}
-class CTraversable c => CFree c where csingleton :: p x y -> c p x y
+class (CTraversable c, forall p. Category (c p)) => CFree c where
+  csingleton :: p x y -> c p x y
 
 {- | `toPath` collapses any `CFoldable` into a `CFree`.
 It is the unique isomorphism which exists
