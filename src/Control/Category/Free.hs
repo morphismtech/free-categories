@@ -65,7 +65,8 @@ module Control.Category.Free
   , EndoR (..)
   , MCat (..)
   , ApCat (..)
-  , OpCat (..)
+  , Op (..)
+  , Iso (..)
   ) where
 
 import Control.Category
@@ -141,8 +142,8 @@ instance CFree FoldPath where csingleton p = FoldPath $ \ k -> k p
 prop> cmap id = id
 prop> cmap (g . f) = cmap g . cmap f
 
-A functors from quivers to `Category`s
-is @(CFunctor c, forall p. Category (c p)@ with
+A functor from quivers to `Category`s
+has @(CFunctor c, forall p. Category (c p))@ with
 
 prop> cmap f id = id
 prop> cmap f (q . p) = cmap f q . cmap f p
@@ -224,8 +225,8 @@ toPath :: (CFoldable c, CFree path) => c p x y -> path p x y
 toPath = cfoldMap csingleton
 
 {- | Reverse all the arrows in a path. -}
-creverse :: (CFoldable c, CFree path) => c p x y -> path (OpCat p) y x
-creverse = getOpCat . cfoldMap (OpCat . csingleton . OpCat)
+creverse :: (CFoldable c, CFree path) => c p x y -> path (Op p) y x
+creverse = getOp . cfoldMap (Op . csingleton . Op)
 
 {- | Insert a given endomorphism before each step. -}
 beforeAll
@@ -264,10 +265,25 @@ newtype ApCat m c x y = ApCat {getApCat :: m (c x y)} deriving (Eq, Ord, Show)
 instance (Applicative m, Category c) => Category (ApCat m c) where
   id = ApCat (pure id)
   ApCat g . ApCat f = ApCat ((.) <$> g <*> f)
+instance Functor m => CFunctor (ApCat m) where
+  cmap f (ApCat m) = ApCat (f <$> m)
 
 {- | Reverse all the arrows in a quiver. If @c@ is a `Category`
-then so is @OpCat c@.-}
-newtype OpCat c x y = OpCat {getOpCat :: c y x} deriving (Eq, Ord, Show)
-instance Category c => Category (OpCat c) where
-  id = OpCat id
-  OpCat g . OpCat f = OpCat (f . g)
+then so is @Op c@.-}
+newtype Op c x y = Op {getOp :: c y x} deriving (Eq, Ord, Show)
+instance Category c => Category (Op c) where
+  id = Op id
+  Op g . Op f = Op (f . g)
+instance CFunctor Op where cmap f = Op . f . getOp
+
+{- | Turn all arrows in a quiver into bidirectional edges.
+If @c@ is a `Category` then so is `Iso`.-}
+data Iso c x y = Iso
+  { up :: c x y
+  , down :: c y x
+  } deriving (Eq, Ord, Show)
+instance Category c => Category (Iso c) where
+  id = Iso id id
+  (Iso yz zy) . (Iso xy yx) = Iso (yz . xy) (yx . zy)
+instance CFunctor Iso where
+  cmap f (Iso u d) = Iso (f u) (f d)
