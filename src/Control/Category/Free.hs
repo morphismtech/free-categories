@@ -29,8 +29,8 @@ from quivers to `Category`s may be defined up to isomorphism as
 
 * the functor `FoldPath` of categorical folds
 
-* abstractly as `CFree` @path => path@, the class of
-  left adjoints to the functor which
+* abstractly as @CFree path => path@,
+  the class of left adjoints to the functor which
   forgets the constraint on `Category` @c => c@
 
 * or as any isomorphic data structure
@@ -56,6 +56,7 @@ module Control.Category.Free
   , CFunctor (..)
   , CFoldable (..)
   , CTraversable (..)
+  , CPointed (..)
   , CFree (..)
   , toPath
   , creverse
@@ -67,6 +68,7 @@ module Control.Category.Free
   , ApCat (..)
   , Op (..)
   , Iso (..)
+  , MaybeQ (..)
   ) where
 
 import Control.Category
@@ -118,7 +120,8 @@ instance CFoldable Path where
 instance CTraversable Path where
   ctraverse _ Done = pure Done
   ctraverse f (p :>> ps) = (:>>) <$> f p <*> ctraverse f ps
-instance CFree Path where csingleton p = p :>> Done
+instance CPointed Path where csingleton p = p :>> Done
+instance CFree Path
 
 {- | Encodes a path as its `cfoldMap` function.-}
 newtype FoldPath p x y = FoldPath
@@ -135,7 +138,8 @@ instance CFunctor FoldPath where cmap f = cfoldMap (csingleton . f)
 instance CFoldable FoldPath where cfoldMap k (FoldPath f) = f k
 instance CTraversable FoldPath where
   ctraverse f = getApCat . cfoldMap (ApCat . fmap csingleton . f)
-instance CFree FoldPath where csingleton p = FoldPath $ \ k -> k p
+instance CPointed FoldPath where csingleton p = FoldPath $ \ k -> k p
+instance CFree FoldPath
 
 {- | An endfunctor of quivers.
 
@@ -204,18 +208,24 @@ class CFoldable c => CTraversable c where
     :: Applicative m
     => (forall x y. p x y -> m (q x y)) -> c p x y -> m (c q x y)
 
+{- | Embed a single quiver arrow with `csingleton`.-}
+class CFunctor c => CPointed c where
+  csingleton :: p x y -> c p x y
+
 {- | Unpacking the definition of a left adjoint to the forgetful functor
-from `Category`s to quivers, there must be a function `csingleton`,
-such that any function
+from `Category`s to quivers, any
 
 @f :: Category d => p x y -> d x y@
 
-factors uniquely through @c p x y@ as
+factors uniquely through the free `Category` @c@ as
 
 prop> cfoldMap f . csingleton = f
 -}
-class (CTraversable c, forall p. Category (c p)) => CFree c where
-  csingleton :: p x y -> c p x y
+class
+  ( CPointed c
+  , CTraversable c
+  , forall p. Category (c p)
+  ) => CFree c where
 
 {- | `toPath` collapses any `CFoldable` into a `CFree`.
 It is the unique isomorphism which exists
@@ -265,8 +275,8 @@ newtype ApCat m c x y = ApCat {getApCat :: m (c x y)} deriving (Eq, Ord, Show)
 instance (Applicative m, Category c) => Category (ApCat m c) where
   id = ApCat (pure id)
   ApCat g . ApCat f = ApCat ((.) <$> g <*> f)
-instance Functor m => CFunctor (ApCat m) where
-  cmap f (ApCat m) = ApCat (f <$> m)
+instance Functor t => CFunctor (ApCat t) where
+  cmap f (ApCat t) = ApCat (f <$> t)
 
 {- | Reverse all the arrows in a quiver.-}
 newtype Op c x y = Op {getOp :: c y x} deriving (Eq, Ord, Show)
@@ -285,3 +295,31 @@ instance Category c => Category (Iso c) where
   (Iso yz zy) . (Iso xy yx) = Iso (yz . xy) (yx . zy)
 instance CFunctor Iso where
   cmap f (Iso u d) = Iso (f u) (f d)
+
+newtype ICat c x y = ICat {getICat :: c x y}
+  deriving (Eq, Ord, Show)
+instance Category c => Category (ICat c) where
+  id = ICat id
+  ICat g . ICat f = ICat (g . f)
+instance CFunctor ICat where
+  cmap f = ICat . f . getICat
+instance CFoldable ICat where
+  cfoldMap f (ICat c) = f c
+instance CTraversable ICat where
+  ctraverse f (ICat c) = ICat <$> f c
+instance CPointed ICat where
+  csingleton = ICat
+
+data MaybeQ p x y where
+  None :: MaybeQ p x x
+  One :: p x y -> MaybeQ p x y
+instance CFunctor MaybeQ where
+  cmap _ None = None
+  cmap f (One p) = One (f p)
+instance CFoldable MaybeQ where
+  cfoldMap _ None = id
+  cfoldMap f (One p) = f p
+instance CTraversable MaybeQ where
+  ctraverse _ None = pure None
+  ctraverse f (One p) = One <$> f p
+instance CPointed MaybeQ where csingleton = One
