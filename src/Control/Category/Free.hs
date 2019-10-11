@@ -298,6 +298,7 @@ instance Category c => Category (Iso c) where
 instance CFunctor Iso where
   cmap f (Iso u d) = Iso (f u) (f d)
 
+{- | The identity functor on quivers. -}
 newtype ICat c x y = ICat {getICat :: c x y}
   deriving (Eq, Ord, Show)
 instance Category c => Category (ICat c) where
@@ -312,6 +313,7 @@ instance CTraversable ICat where
 instance CPointed ICat where
   csingleton = ICat
 
+{- | Generalize `Maybe` to quivers. -}
 data MaybeQ p x y where
   None :: MaybeQ p x x
   One :: p x y -> MaybeQ p x y
