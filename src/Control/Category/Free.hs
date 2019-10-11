@@ -277,6 +277,8 @@ instance (Applicative m, Category c) => Category (ApCat m c) where
   ApCat g . ApCat f = ApCat ((.) <$> g <*> f)
 instance Functor t => CFunctor (ApCat t) where
   cmap f (ApCat t) = ApCat (f <$> t)
+instance Applicative t => CPointed (ApCat t) where
+  csingleton = ApCat . pure
 
 {- | Reverse all the arrows in a quiver.-}
 newtype Op c x y = Op {getOp :: c y x} deriving (Eq, Ord, Show)
