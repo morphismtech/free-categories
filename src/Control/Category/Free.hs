@@ -67,8 +67,8 @@ module Control.Category.Free
   , Quiver (..)
   , EndoL (..)
   , EndoR (..)
-  , KQ (..)
-  , ApQ (..)
+  , KCat (..)
+  , ApCat (..)
   , Op (..)
   , Iso (..)
   , MaybeQ (..)
@@ -144,7 +144,7 @@ instance Category (FoldPath p) where
 instance CFunctor FoldPath where cmap f = cfoldMap (csingleton . f)
 instance CFoldable FoldPath where cfoldMap k (FoldPath f) = f k
 instance CTraversable FoldPath where
-  ctraverse f = getApQ . cfoldMap (ApQ . fmap csingleton . f)
+  ctraverse f = getApCat . cfoldMap (ApCat . fmap csingleton . f)
 instance CPointed FoldPath where csingleton p = FoldPath $ \ k -> k p
 instance CMonad FoldPath where cjoin (FoldPath k) = k id
 instance CFree FoldPath
@@ -197,7 +197,7 @@ class CFunctor c => CFoldable c where
   {- | Map each element of the structure to a `Monoid`,
   and combine the results.-}
   ctoMonoid :: Monoid m => (forall x y. p x y -> m) -> c p x y -> m
-  ctoMonoid f = getKQ . cfoldMap (KQ . f)
+  ctoMonoid f = getKCat . cfoldMap (KCat . f)
   {- | Map each element of the structure, and combine the results in a list.-}
   ctoList :: (forall x y. p x y -> a) -> c p x y -> [a]
   ctoList f = ctoMonoid (pure . f)
@@ -206,7 +206,7 @@ class CFunctor c => CFoldable c where
   ctraverse_
     :: (Applicative m, Category q)
     => (forall x y. p x y -> m (q x y)) -> c p x y -> m (q x y)
-  ctraverse_ f = getApQ . cfoldMap (ApQ . f)
+  ctraverse_ f = getApCat . cfoldMap (ApCat . f)
 
 {- | Generalizing `Traversable` to `Category`s.-}
 class CFoldable c => CTraversable c where
@@ -297,23 +297,23 @@ instance Category (EndoL p) where
 
 {- | Turn a `Monoid` into a `Category`,
 used in the default definition of `ctoMonoid`.-}
-newtype KQ m x y = KQ {getKQ :: m} deriving (Eq, Ord, Show)
-instance Monoid m => Category (KQ m) where
-  id = KQ mempty
-  KQ g . KQ f = KQ (f <> g)
+newtype KCat m x y = KCat {getKCat :: m} deriving (Eq, Ord, Show)
+instance Monoid m => Category (KCat m) where
+  id = KCat mempty
+  KCat g . KCat f = KCat (f <> g)
 
 {- | Turn an `Applicative` over a `Category` into a `Category`,
 used in the default definition of `ctraverse_`.-}
-newtype ApQ m c x y = ApQ {getApQ :: m (c x y)} deriving (Eq, Ord, Show)
-instance (Applicative m, Category c) => Category (ApQ m c) where
-  id = ApQ (pure id)
-  ApQ g . ApQ f = ApQ ((.) <$> g <*> f)
-instance Functor t => CFunctor (ApQ t) where
-  cmap f (ApQ t) = ApQ (f <$> t)
-instance Applicative t => CPointed (ApQ t) where
-  csingleton = ApQ . pure
-instance Applicative t => CApplicative (ApQ t) where
-  czip f (ApQ tp) (ApQ tq) = ApQ (f <$> tp <*> tq)
+newtype ApCat m c x y = ApCat {getApCat :: m (c x y)} deriving (Eq, Ord, Show)
+instance (Applicative m, Category c) => Category (ApCat m c) where
+  id = ApCat (pure id)
+  ApCat g . ApCat f = ApCat ((.) <$> g <*> f)
+instance Functor t => CFunctor (ApCat t) where
+  cmap f (ApCat t) = ApCat (f <$> t)
+instance Applicative t => CPointed (ApCat t) where
+  csingleton = ApCat . pure
+instance Applicative t => CApplicative (ApCat t) where
+  czip f (ApCat tp) (ApCat tq) = ApCat (f <$> tp <*> tq)
 
 {- | Reverse all the arrows in a quiver.-}
 newtype Op c x y = Op {getOp :: c y x} deriving (Eq, Ord, Show)
@@ -354,6 +354,9 @@ made into a @Category@. -}
 data MaybeQ p x y where
   NoneQ :: MaybeQ p x x
   OneQ :: p x y -> MaybeQ p x y
+deriving instance (Eq (p x y)) => Eq (MaybeQ p x y)
+deriving instance (Ord (p x y)) => Ord (MaybeQ p x y)
+deriving instance (Show (p x y)) => Show (MaybeQ p x y)
 instance CFunctor MaybeQ where
   cmap _ NoneQ = NoneQ
   cmap f (OneQ p) = OneQ (f p)
@@ -379,6 +382,9 @@ If @m@ is a `Monoid` and @p@ is a @Semigroupoid@,
 data EitherQ m p x y where
   LeftQ :: m -> EitherQ m p x x
   RightQ :: p x y -> EitherQ m p x y
+deriving instance (Eq m, Eq (p x y)) => Eq (EitherQ m p x y)
+deriving instance (Ord m, Ord (p x y)) => Ord (EitherQ m p x y)
+deriving instance (Show m, Show (p x y)) => Show (EitherQ m p x y)
 instance CFunctor (EitherQ m) where
   cmap _ (LeftQ m) = LeftQ m
   cmap f (RightQ p) = RightQ (f p)
@@ -401,7 +407,7 @@ instance CMonad (EitherQ m) where
 data ProductQ p q x y = ProductQ
   { fstQ :: p x y
   , sndQ :: q x y
-  }
+  } deriving (Eq, Ord, Show)
 instance (Category p, Category q) => Category (ProductQ p q) where
   id = ProductQ id id
   ProductQ pyz qyz . ProductQ pxy qxy = ProductQ (pyz . pxy) (qyz . qxy)
