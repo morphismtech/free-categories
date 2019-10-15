@@ -64,13 +64,16 @@ module Control.Category.Free
   , creverse
   , beforeAll
   , afterAll
+  , Quiver (..)
   , EndoL (..)
   , EndoR (..)
-  , MCat (..)
-  , ApCat (..)
+  , KQ (..)
+  , ApQ (..)
   , Op (..)
   , Iso (..)
   , MaybeQ (..)
+  , EitherQ (..)
+  , ProductQ (..)
   ) where
 
 import Control.Category
@@ -128,7 +131,8 @@ instance CFree Path
 
 {- | Encodes a path as its `cfoldMap` function.-}
 newtype FoldPath p x y = FoldPath
-  {getFoldPath :: forall q. Category q => (forall x y. p x y -> q x y) -> q x y}
+  {getFoldPath :: forall q. Category q
+    => (forall x y. p x y -> q x y) -> q x y}
 instance x ~ y => Semigroup (FoldPath p x y) where
   (<>) = (>>>)
 instance x ~ y => Monoid (FoldPath p x y) where
@@ -140,7 +144,7 @@ instance Category (FoldPath p) where
 instance CFunctor FoldPath where cmap f = cfoldMap (csingleton . f)
 instance CFoldable FoldPath where cfoldMap k (FoldPath f) = f k
 instance CTraversable FoldPath where
-  ctraverse f = getApCat . cfoldMap (ApCat . fmap csingleton . f)
+  ctraverse f = getApQ . cfoldMap (ApQ . fmap csingleton . f)
 instance CPointed FoldPath where csingleton p = FoldPath $ \ k -> k p
 instance CMonad FoldPath where cjoin (FoldPath k) = k id
 instance CFree FoldPath
@@ -193,7 +197,7 @@ class CFunctor c => CFoldable c where
   {- | Map each element of the structure to a `Monoid`,
   and combine the results.-}
   ctoMonoid :: Monoid m => (forall x y. p x y -> m) -> c p x y -> m
-  ctoMonoid f = getMCat . cfoldMap (MCat . f)
+  ctoMonoid f = getKQ . cfoldMap (KQ . f)
   {- | Map each element of the structure, and combine the results in a list.-}
   ctoList :: (forall x y. p x y -> a) -> c p x y -> [a]
   ctoList f = ctoMonoid (pure . f)
@@ -202,7 +206,7 @@ class CFunctor c => CFoldable c where
   ctraverse_
     :: (Applicative m, Category q)
     => (forall x y. p x y -> m (q x y)) -> c p x y -> m (q x y)
-  ctraverse_ f = getApCat . cfoldMap (ApCat . f)
+  ctraverse_ f = getApQ . cfoldMap (ApQ . f)
 
 {- | Generalizing `Traversable` to `Category`s.-}
 class CFoldable c => CTraversable c where
@@ -216,6 +220,7 @@ class CFoldable c => CTraversable c where
 class CPointed c where
   csingleton :: p x y -> c p x y
 
+{- | Generalize `Applicative` to quivers. -}
 class (CFunctor c, CPointed c) => CApplicative c where
   cap :: c (Quiver p q) x y -> c p x y -> c q x y
   cap = czip getQuiver
@@ -224,6 +229,7 @@ class (CFunctor c, CPointed c) => CApplicative c where
     -> c p x y -> c q x y -> c r x y
   czip f p q = (Quiver . f) `cmap` p `cap` q
 
+{- | Generalize `Monad` to quivers. -}
 class (CFunctor c, CPointed c) => CMonad c where
   cjoin :: c (c p) x y -> c p x y
   cjoin = cbind id
@@ -268,6 +274,15 @@ afterAll
   => (forall x. p x x) -> c p x y -> path p x y
 afterAll sep = cfoldMap (\p -> csingleton p >>> csingleton sep)
 
+{- | Morphisms of quivers. -}
+newtype Quiver p q x y = Quiver { getQuiver :: p x y -> q x y }
+instance CFunctor (Quiver p) where cmap g (Quiver f) = Quiver (g . f)
+instance CPointed (Quiver p) where csingleton q = Quiver (const q)
+instance CApplicative (Quiver p) where
+  cap (Quiver cf) (Quiver cq) = Quiver (\p -> getQuiver (cf p) (cq p))
+instance CMonad (Quiver p) where
+  cjoin (Quiver q) = Quiver (\p -> getQuiver (q p) p)
+
 {- | Used in the default definition of `cfoldr`.-}
 newtype EndoR p y x = EndoR {getEndoR :: forall z. p x z -> p y z}
 instance Category (EndoR p) where
@@ -282,23 +297,23 @@ instance Category (EndoL p) where
 
 {- | Turn a `Monoid` into a `Category`,
 used in the default definition of `ctoMonoid`.-}
-newtype MCat m x y = MCat {getMCat :: m} deriving (Eq, Ord, Show)
-instance Monoid m => Category (MCat m) where
-  id = MCat mempty
-  MCat g . MCat f = MCat (f <> g)
+newtype KQ m x y = KQ {getKQ :: m} deriving (Eq, Ord, Show)
+instance Monoid m => Category (KQ m) where
+  id = KQ mempty
+  KQ g . KQ f = KQ (f <> g)
 
 {- | Turn an `Applicative` over a `Category` into a `Category`,
 used in the default definition of `ctraverse_`.-}
-newtype ApCat m c x y = ApCat {getApCat :: m (c x y)} deriving (Eq, Ord, Show)
-instance (Applicative m, Category c) => Category (ApCat m c) where
-  id = ApCat (pure id)
-  ApCat g . ApCat f = ApCat ((.) <$> g <*> f)
-instance Functor t => CFunctor (ApCat t) where
-  cmap f (ApCat t) = ApCat (f <$> t)
-instance Applicative t => CPointed (ApCat t) where
-  csingleton = ApCat . pure
-instance Applicative t => CApplicative (ApCat t) where
-  czip f (ApCat tp) (ApCat tq) = ApCat (f <$> tp <*> tq)
+newtype ApQ m c x y = ApQ {getApQ :: m (c x y)} deriving (Eq, Ord, Show)
+instance (Applicative m, Category c) => Category (ApQ m c) where
+  id = ApQ (pure id)
+  ApQ g . ApQ f = ApQ ((.) <$> g <*> f)
+instance Functor t => CFunctor (ApQ t) where
+  cmap f (ApQ t) = ApQ (f <$> t)
+instance Applicative t => CPointed (ApQ t) where
+  csingleton = ApQ . pure
+instance Applicative t => CApplicative (ApQ t) where
+  czip f (ApQ tp) (ApQ tq) = ApQ (f <$> tp <*> tq)
 
 {- | Reverse all the arrows in a quiver.-}
 newtype Op c x y = Op {getOp :: c y x} deriving (Eq, Ord, Show)
@@ -333,7 +348,9 @@ instance CTraversable IQ where
 instance CPointed IQ where
   csingleton = IQ
 
-{- | Generalize `Maybe` to quivers. -}
+{- | Generalize `Maybe` to quivers.
+If @p@ is a @Semigroupoid@, @MaybeQ p@ can be
+made into a @Category@. -}
 data MaybeQ p x y where
   NoneQ :: MaybeQ p x x
   OneQ :: p x y -> MaybeQ p x y
@@ -356,6 +373,31 @@ instance CMonad MaybeQ where
   cjoin (OneQ NoneQ) = NoneQ
   cjoin (OneQ (OneQ p)) = OneQ p
 
+{- | Generalize `Either` to quivers.
+If @m@ is a `Monoid` and @p@ is a @Semigroupoid@,
+@EitherQ m p@ can be made into a `Category`. -}
+data EitherQ m p x y where
+  LeftQ :: m -> EitherQ m p x x
+  RightQ :: p x y -> EitherQ m p x y
+instance CFunctor (EitherQ m) where
+  cmap _ (LeftQ m) = LeftQ m
+  cmap f (RightQ p) = RightQ (f p)
+instance CFoldable (EitherQ m) where
+  cfoldMap _ (LeftQ _) = id
+  cfoldMap f (RightQ p) = f p
+instance CTraversable (EitherQ m) where
+  ctraverse _ (LeftQ m) = pure (LeftQ m)
+  ctraverse f (RightQ p) = RightQ <$> f p
+instance CPointed (EitherQ m) where csingleton = RightQ
+instance CApplicative (EitherQ m) where
+  cap (LeftQ m) _ = LeftQ m
+  cap _ (LeftQ m) = LeftQ m
+  cap (RightQ (Quiver f)) (RightQ p) = RightQ (f p)
+instance CMonad (EitherQ m) where
+  cjoin (LeftQ m) = LeftQ m
+  cjoin (RightQ (LeftQ m)) = LeftQ m
+  cjoin (RightQ (RightQ p)) = RightQ p
+
 data ProductQ p q x y = ProductQ
   { fstQ :: p x y
   , sndQ :: q x y
@@ -367,12 +409,3 @@ instance CFunctor (ProductQ p) where cmap f (ProductQ p q) = ProductQ p (f q)
 instance CFoldable (ProductQ p) where cfoldMap f (ProductQ _ q) = f q
 instance CTraversable (ProductQ p) where
   ctraverse f (ProductQ p q) = ProductQ p <$> f q
-
-{- | Morphisms of quivers. -}
-newtype Quiver p q x y = Quiver { getQuiver :: p x y -> q x y }
-instance CFunctor (Quiver p) where cmap g (Quiver f) = Quiver (g . f)
-instance CPointed (Quiver p) where csingleton q = Quiver (const q)
-instance CApplicative (Quiver p) where
-  cap (Quiver cf) (Quiver cq) = Quiver (\p -> getQuiver (cf p) (cq p))
-instance CMonad (Quiver p) where
-  cjoin (Quiver q) = Quiver (\p -> getQuiver (q p) p)
