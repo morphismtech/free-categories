@@ -218,8 +218,7 @@ class CFoldable c => CTraversable c where
     => (forall x y. p x y -> m (q x y)) -> c p x y -> m (c q x y)
 
 {- | Embed a single quiver arrow with `csingleton`.-}
-class CPointed c where
-  csingleton :: p x y -> c p x y
+class CPointed c where csingleton :: p x y -> c p x y
 
 {- | Generalize `Applicative` to quivers. -}
 class (CFunctor c, CPointed c) => CApplicative c where
