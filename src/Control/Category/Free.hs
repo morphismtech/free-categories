@@ -327,6 +327,8 @@ instance Monad t => CMonad (ApQ t) where
 
 {- | Reverse all the arrows in a quiver.-}
 newtype Op c x y = Op {getOp :: c y x} deriving (Eq, Ord, Show)
+instance (Category c, x ~ y) => Semigroup (Op c x y) where (<>) = (>>>)
+instance (Category c, x ~ y) => Monoid (Op c x y) where mempty = id
 instance Category c => Category (Op c) where
   id = Op id
   Op g . Op f = Op (f . g)
@@ -337,6 +339,8 @@ data Iso c x y = Iso
   { up :: c x y
   , down :: c y x
   } deriving (Eq, Ord, Show)
+instance (Category c, x ~ y) => Semigroup (Iso c x y) where (<>) = (>>>)
+instance (Category c, x ~ y) => Monoid (Iso c x y) where mempty = id
 instance Category c => Category (Iso c) where
   id = Iso id id
   (Iso yz zy) . (Iso xy yx) = Iso (yz . xy) (yx . zy)
