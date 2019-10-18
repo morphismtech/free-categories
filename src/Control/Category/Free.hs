@@ -271,7 +271,7 @@ afterAll
   => (forall x. p x x) -> c p x y -> path p x y
 afterAll sep = cfoldMap (\p -> csingleton p >>> csingleton sep)
 
-{- | Morphisms of quivers. -}
+{- | Morphism components of quivers. -}
 newtype Quiver p q x y = Quiver { getQuiver :: p x y -> q x y }
 instance CFunctor (Quiver p) where cmap g (Quiver f) = Quiver (g . f)
 instance CPointed (Quiver p) where csingleton q = Quiver (const q)
