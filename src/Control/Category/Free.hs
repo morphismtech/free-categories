@@ -422,6 +422,10 @@ data ProductQ p q x y = ProductQ
   { fstQ :: p x y
   , sndQ :: q x y
   } deriving (Eq, Ord, Show)
+instance (Category p, Category q, x ~ y)
+  => Semigroup (ProductQ p q x y) where (<>) = (>>>)
+instance (Category p, Category q, x ~ y)
+  => Monoid (ProductQ p q x y) where mempty = id
 instance (Category p, Category q) => Category (ProductQ p q) where
   id = ProductQ id id
   ProductQ pyz qyz . ProductQ pxy qxy = ProductQ (pyz . pxy) (qyz . qxy)
