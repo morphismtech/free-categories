@@ -142,7 +142,7 @@ instance CFoldable FoldPath where cfoldMap k (FoldPath f) = f k
 instance CTraversable FoldPath where
   ctraverse f = getApQ . cfoldMap (ApQ . fmap csingleton . f)
 instance CPointed FoldPath where csingleton p = FoldPath $ \ k -> k p
-instance CMonad FoldPath where cjoin (FoldPath k) = k id
+instance CMonad FoldPath where cjoin (FoldPath f) = f id
 instance CFree FoldPath
 
 {- | An endfunctor of quivers.
