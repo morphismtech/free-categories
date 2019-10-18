@@ -363,7 +363,7 @@ instance CPointed IQ where csingleton = IQ
 
 {- | Generalize `Maybe` to quivers.
 If @p@ is a @Semigroupoid@, @MaybeQ p@ can be
-made into a @Category@. -}
+made into a `Category`. -}
 data MaybeQ p x y where
   NoneQ :: MaybeQ p x x
   OneQ :: p x y -> MaybeQ p x y
