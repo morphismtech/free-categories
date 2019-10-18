@@ -204,7 +204,7 @@ class CFunctor c => CFoldable c where
     => (forall x y. p x y -> m (q x y)) -> c p x y -> m (q x y)
   ctraverse_ f = getApQ . cfoldMap (ApQ . f)
 
-{- | Generalizing `Traversable` to `Category`s.-}
+{- | Generalizing `Traversable` to quivers.-}
 class CFoldable c => CTraversable c where
   {- | Map each element of a structure to an `Applicative` on a quiver,
   evaluate from left to right, and collect the results.-}
@@ -259,13 +259,13 @@ toPath = cfoldMap csingleton
 creverse :: (CFoldable c, CFree path) => c p x y -> path (Op p) y x
 creverse = getOp . cfoldMap (Op . csingleton . Op)
 
-{- | Insert a given endomorphism before each step. -}
+{- | Insert a given endo before each step. -}
 beforeAll
   :: (CFoldable c, CFree path)
   => (forall x. p x x) -> c p x y -> path p x y
 beforeAll sep = cfoldMap (\p -> csingleton sep >>> csingleton p)
 
-{- | Insert a given endomorphism before each step. -}
+{- | Insert a given endo before each step. -}
 afterAll
   :: (CFoldable c, CFree path)
   => (forall x. p x x) -> c p x y -> path p x y
