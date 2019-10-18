@@ -69,8 +69,8 @@ module Control.Category.Free
   , EndoR (..)
   , KQ (..)
   , ApQ (..)
-  , Op (..)
-  , Iso (..)
+  , OpQ (..)
+  , IsoQ (..)
   , IQ (..)
   , MaybeQ (..)
   , EitherQ (..)
@@ -256,8 +256,8 @@ toPath :: (CFoldable c, CFree path) => c p x y -> path p x y
 toPath = cfoldMap csingleton
 
 {- | Reverse all the arrows in a path. -}
-creverse :: (CFoldable c, CFree path) => c p x y -> path (Op p) y x
-creverse = getOp . cfoldMap (Op . csingleton . Op)
+creverse :: (CFoldable c, CFree path) => c p x y -> path (OpQ p) y x
+creverse = getOpQ . cfoldMap (OpQ . csingleton . OpQ)
 
 {- | Insert a given endo before each step. -}
 beforeAll
@@ -328,26 +328,26 @@ instance Monad t => CMonad (ApQ t) where
     getApQ $ f p
 
 {- | Reverse all the arrows in a quiver.-}
-newtype Op c x y = Op {getOp :: c y x} deriving (Eq, Ord, Show)
-instance (Category c, x ~ y) => Semigroup (Op c x y) where (<>) = (>>>)
-instance (Category c, x ~ y) => Monoid (Op c x y) where mempty = id
-instance Category c => Category (Op c) where
-  id = Op id
-  Op g . Op f = Op (f . g)
-instance CFunctor Op where cmap f = Op . f . getOp
+newtype OpQ c x y = OpQ {getOpQ :: c y x} deriving (Eq, Ord, Show)
+instance (Category c, x ~ y) => Semigroup (OpQ c x y) where (<>) = (>>>)
+instance (Category c, x ~ y) => Monoid (OpQ c x y) where mempty = id
+instance Category c => Category (OpQ c) where
+  id = OpQ id
+  OpQ g . OpQ f = OpQ (f . g)
+instance CFunctor OpQ where cmap f = OpQ . f . getOpQ
 
 {- | Turn all arrows in a quiver into bidirectional edges.-}
-data Iso c x y = Iso
+data IsoQ c x y = IsoQ
   { up :: c x y
   , down :: c y x
   } deriving (Eq, Ord, Show)
-instance (Category c, x ~ y) => Semigroup (Iso c x y) where (<>) = (>>>)
-instance (Category c, x ~ y) => Monoid (Iso c x y) where mempty = id
-instance Category c => Category (Iso c) where
-  id = Iso id id
-  (Iso yz zy) . (Iso xy yx) = Iso (yz . xy) (yx . zy)
-instance CFunctor Iso where
-  cmap f (Iso u d) = Iso (f u) (f d)
+instance (Category c, x ~ y) => Semigroup (IsoQ c x y) where (<>) = (>>>)
+instance (Category c, x ~ y) => Monoid (IsoQ c x y) where mempty = id
+instance Category c => Category (IsoQ c) where
+  id = IsoQ id id
+  (IsoQ yz zy) . (IsoQ xy yx) = IsoQ (yz . xy) (yx . zy)
+instance CFunctor IsoQ where
+  cmap f (IsoQ u d) = IsoQ (f u) (f d)
 
 {- | The identity functor on quivers. -}
 newtype IQ c x y = IQ {getIQ :: c x y} deriving (Eq, Ord, Show)
