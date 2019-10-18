@@ -71,6 +71,7 @@ module Control.Category.Free
   , ApQ (..)
   , Op (..)
   , Iso (..)
+  , IQ (..)
   , MaybeQ (..)
   , EitherQ (..)
   , ProductQ (..)
@@ -101,11 +102,8 @@ pattern (:<<) :: Path p y z -> p x y -> Path p x z
 pattern ps :<< p = p :>> ps
 infixl 7 :<<
 deriving instance (forall x y. Show (p x y)) => Show (Path p x y)
-instance x ~ y => Semigroup (Path p x y) where
-  (<>) = (>>>)
-instance x ~ y => Monoid (Path p x y) where
-  mempty = Done
-  mappend = (>>>)
+instance x ~ y => Semigroup (Path p x y) where (<>) = (>>>)
+instance x ~ y => Monoid (Path p x y) where mempty = Done
 instance Category (Path p) where
   id = Done
   (.) path = \case
@@ -134,11 +132,8 @@ instance CFree Path
 newtype FoldPath p x y = FoldPath
   {getFoldPath :: forall q. Category q
     => (forall x y. p x y -> q x y) -> q x y}
-instance x ~ y => Semigroup (FoldPath p x y) where
-  (<>) = (>>>)
-instance x ~ y => Monoid (FoldPath p x y) where
-  mempty = id
-  mappend = (>>>)
+instance x ~ y => Semigroup (FoldPath p x y) where (<>) = (>>>)
+instance x ~ y => Monoid (FoldPath p x y) where mempty = id
 instance Category (FoldPath p) where
   id = FoldPath $ \ _ -> id
   FoldPath g . FoldPath f = FoldPath $ \ k -> g k . f k
@@ -285,12 +280,16 @@ instance CMonad (Quiver p) where
 
 {- | Used in the default definition of `cfoldr`.-}
 newtype EndoR p y x = EndoR {getEndoR :: forall z. p x z -> p y z}
+instance x ~ y => Semigroup (EndoR p y x) where (<>) = (>>>)
+instance x ~ y => Monoid (EndoR p x y) where mempty = id
 instance Category (EndoR p) where
   id = EndoR id
   EndoR f1 . EndoR f2 = EndoR (f2 . f1)
 
 {- | Used in the default definition of `cfoldr`.-}
 newtype EndoL p x y = EndoL {getEndoL :: forall w . p w x -> p w y}
+instance x ~ y => Semigroup (EndoL p x y) where (<>) = (>>>)
+instance x ~ y => Monoid (EndoL p x y) where mempty = id
 instance Category (EndoL p) where
   id = EndoL id
   EndoL f1 . EndoL f2 = EndoL (f1 . f2)
@@ -298,6 +297,9 @@ instance Category (EndoL p) where
 {- | Turn a `Monoid` into a `Category`,
 used in the default definition of `ctoMonoid`.-}
 newtype KQ m x y = KQ {getKQ :: m} deriving (Eq, Ord, Show)
+instance (Semigroup m, x ~ y) => Semigroup (KQ m x y) where
+  KQ f <> KQ g = KQ (f <> g)
+instance (Monoid m, x ~ y) => Monoid (KQ m x y) where mempty = id
 instance Monoid m => Category (KQ m) where
   id = KQ mempty
   KQ g . KQ f = KQ (f <> g)
@@ -305,6 +307,10 @@ instance Monoid m => Category (KQ m) where
 {- | Turn an `Applicative` over a `Category` into a `Category`,
 used in the default definition of `ctraverse_`.-}
 newtype ApQ m c x y = ApQ {getApQ :: m (c x y)} deriving (Eq, Ord, Show)
+instance (Applicative m, Category c, x ~ y)
+  => Semigroup (ApQ m c x y) where (<>) = (>>>)
+instance (Applicative m, Category c, x ~ y)
+  => Monoid (ApQ m c x y) where mempty = id
 instance (Applicative m, Category c) => Category (ApQ m c) where
   id = ApQ (pure id)
   ApQ g . ApQ f = ApQ ((.) <$> g <*> f)
@@ -338,19 +344,16 @@ instance CFunctor Iso where
   cmap f (Iso u d) = Iso (f u) (f d)
 
 {- | The identity functor on quivers. -}
-newtype IQ c x y = IQ {getIQ :: c x y}
-  deriving (Eq, Ord, Show)
+newtype IQ c x y = IQ {getIQ :: c x y} deriving (Eq, Ord, Show)
+instance (Category c, x ~ y) => Semigroup (IQ c x y) where (<>) = (>>>)
+instance (Category c, x ~ y) => Monoid (IQ c x y) where mempty = id
 instance Category c => Category (IQ c) where
   id = IQ id
   IQ g . IQ f = IQ (g . f)
-instance CFunctor IQ where
-  cmap f = IQ . f . getIQ
-instance CFoldable IQ where
-  cfoldMap f (IQ c) = f c
-instance CTraversable IQ where
-  ctraverse f (IQ c) = IQ <$> f c
-instance CPointed IQ where
-  csingleton = IQ
+instance CFunctor IQ where cmap f = IQ . f . getIQ
+instance CFoldable IQ where cfoldMap f (IQ c) = f c
+instance CTraversable IQ where ctraverse f (IQ c) = IQ <$> f c
+instance CPointed IQ where csingleton = IQ
 
 {- | Generalize `Maybe` to quivers.
 If @p@ is a @Semigroupoid@, @MaybeQ p@ can be
