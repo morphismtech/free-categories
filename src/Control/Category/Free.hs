@@ -223,6 +223,7 @@ class (CFunctor c, CPointed c) => CApplicative c where
     :: (forall x y z. p x y -> q x y -> r x y)
     -> c p x y -> c q x y -> c r x y
   czip f p q = (Quiver . f) `cmap` p `cap` q
+  {-# MINIMAL cap | czip #-}
 
 {- | Generalize `Monad` to quivers. -}
 class (CFunctor c, CPointed c) => CMonad c where
@@ -230,6 +231,7 @@ class (CFunctor c, CPointed c) => CMonad c where
   cjoin = cbind id
   cbind :: (forall x y. p x y -> c q x y) -> c p x y -> c q x y
   cbind f p = cjoin (cmap f p)
+  {-# MINIMAL cjoin | cbind #-}
 
 {- | Unpacking the definition of a left adjoint to the forgetful functor
 from `Category`s to quivers, any
@@ -415,6 +417,7 @@ instance CMonad (EitherQ m) where
   cjoin (RightQ (LeftQ m)) = LeftQ m
   cjoin (RightQ (RightQ p)) = RightQ p
 
+{- | Product of quivers.-}
 data ProductQ p q x y = ProductQ
   { fstQ :: p x y
   , sndQ :: q x y
