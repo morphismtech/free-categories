@@ -57,6 +57,7 @@ module Control.Category.Free
   , CFoldable (..)
   , CTraversable (..)
   , CPointed (..)
+  , CStrong (..)
   , CApplicative (..)
   , CMonad (..)
   , CFree (..)
@@ -75,6 +76,12 @@ module Control.Category.Free
   , MaybeQ (..)
   , EitherQ (..)
   , ProductQ (..)
+  , assocQ
+  , disassocQ
+  , firstQ
+  , secondQ
+  , productQ
+  , swapQ
   ) where
 
 import Control.Category
@@ -215,14 +222,37 @@ class CFoldable c => CTraversable c where
 {- | Embed a single quiver arrow with `csingleton`.-}
 class CPointed c where csingleton :: p x y -> c p x y
 
+{- | Generalizing strong `Functor`s.
+
+/Note:/ Every 'Functor' in Haskell is strong with respect to @(,)@.
+
+This describes strength for quiver endofunctors with respect to `ProductQ`.
+
+Not all quiver endofunctors are strong, for instance `Path` is not.
+-}
+class CFunctor c => CStrong c where
+  cfirst :: ProductQ (c p) q x y -> c (ProductQ p q) x y
+  cfirst = cmap swapQ . csecond . swapQ
+  csecond :: ProductQ p (c q) x y -> c (ProductQ p q) x y
+  csecond = cmap swapQ . cfirst . swapQ
+  {-# MINIMAL cfirst | csecond #-}
+
 {- | Generalize `Applicative` to quivers.
+
+The laws of a strong lax monoidal endofunctor hold.
+Letting `cunit = csingleton UnitQ` and `ctimes = czip ProductQ`,
+
+prop> cmap (productQ f g) (p `ctimes` q) = cmap f p `ctimes` cmap g q
+prop> cmap sndQ (cunit `ctimes` q) = q
+prop> cmap fstQ (p `ctimes` cunit) = p
+prop> cmap assocQ (p `ctimes` (q `ctimes` r)) = (p `ctimes` q) `ctimes` r
 
 The functions `cap` and `czip` are related as
 
 prop> cap = czip getQuiver
 prop> czip f p q = (Quiver . f) `cmap` p `cap` q
 -}
-class (CFunctor c, CPointed c) => CApplicative c where
+class (CStrong c, CPointed c) => CApplicative c where
   cap :: c (Quiver p q) x y -> c p x y -> c q x y
   cap = czip getQuiver
   czip
@@ -233,7 +263,7 @@ class (CFunctor c, CPointed c) => CApplicative c where
 
 {- | Generalize `Monad` to quivers.
 
-Associativity and left and right unit laws hold.
+Associativity and left and right identity laws hold.
 
 prop> cjoin . cjoin = cjoin . cmap cjoin
 prop> cjoin . csingleton = id
@@ -293,6 +323,8 @@ afterAll sep = cfoldMap (\p -> csingleton p >>> csingleton sep)
 newtype Quiver p q x y = Quiver { getQuiver :: p x y -> q x y }
 instance CFunctor (Quiver p) where cmap g (Quiver f) = Quiver (g . f)
 instance CPointed (Quiver p) where csingleton q = Quiver (const q)
+instance CStrong (Quiver p) where
+  csecond (ProductQ p (Quiver f)) = Quiver (ProductQ p . f)
 instance CApplicative (Quiver p) where
   cap (Quiver cf) (Quiver cq) = Quiver (\p -> getQuiver (cf p) (cq p))
 instance CMonad (Quiver p) where
@@ -338,6 +370,8 @@ instance Functor t => CFunctor (ApQ t) where
   cmap f (ApQ t) = ApQ (f <$> t)
 instance Applicative t => CPointed (ApQ t) where
   csingleton = ApQ . pure
+instance Functor t => CStrong (ApQ t) where
+  csecond (ProductQ p (ApQ t)) = ApQ (ProductQ p <$> t)
 instance Applicative t => CApplicative (ApQ t) where
   czip f (ApQ tp) (ApQ tq) = ApQ (f <$> tp <*> tq)
 instance Monad t => CMonad (ApQ t) where
@@ -378,6 +412,7 @@ instance CFunctor IQ where cmap f = IQ . f . getIQ
 instance CFoldable IQ where cfoldMap f (IQ c) = f c
 instance CTraversable IQ where ctraverse f (IQ c) = IQ <$> f c
 instance CPointed IQ where csingleton = IQ
+instance CStrong IQ where csecond (ProductQ p (IQ q)) = IQ (ProductQ p q)
 instance CApplicative IQ where czip f (IQ p) (IQ q) = IQ (f p q)
 instance CMonad IQ where cjoin = getIQ
 
@@ -400,6 +435,9 @@ instance CTraversable MaybeQ where
   ctraverse _ NoneQ = pure NoneQ
   ctraverse f (OneQ p) = OneQ <$> f p
 instance CPointed MaybeQ where csingleton = OneQ
+instance CStrong MaybeQ where
+  csecond (ProductQ _ NoneQ) = NoneQ
+  csecond (ProductQ p (OneQ q)) = OneQ (ProductQ p q)
 instance CApplicative MaybeQ where
   cap NoneQ _ = NoneQ
   cap _ NoneQ = NoneQ
@@ -428,6 +466,9 @@ instance CTraversable (EitherQ m) where
   ctraverse _ (LeftQ m) = pure (LeftQ m)
   ctraverse f (RightQ p) = RightQ <$> f p
 instance CPointed (EitherQ m) where csingleton = RightQ
+instance CStrong (EitherQ m) where
+  csecond (ProductQ _ (LeftQ m)) = LeftQ m
+  csecond (ProductQ p (RightQ q)) = RightQ (ProductQ p q)
 instance CApplicative (EitherQ m) where
   cap (LeftQ m) _ = LeftQ m
   cap _ (LeftQ m) = LeftQ m
@@ -461,3 +502,31 @@ instance CFunctor (ProductQ p) where cmap f (ProductQ p q) = ProductQ p (f q)
 instance CFoldable (ProductQ p) where cfoldMap f (ProductQ _ q) = f q
 instance CTraversable (ProductQ p) where
   ctraverse f (ProductQ p q) = ProductQ p <$> f q
+
+{- | Associator of `ProductQ`.-}
+assocQ :: ProductQ p (ProductQ q r) x y -> ProductQ (ProductQ p q) r x y
+assocQ (ProductQ p (ProductQ q r)) = ProductQ (ProductQ p q) r
+
+{- | Inverse associator of `ProductQ`.-}
+disassocQ :: ProductQ (ProductQ p q) r x y -> ProductQ p (ProductQ q r) x y
+disassocQ (ProductQ (ProductQ p q) r) = ProductQ p (ProductQ q r)
+
+{- | Map over the `fstQ` of a `ProductQ`.-}
+firstQ :: (p0 x y -> p1 x y) -> ProductQ p0 q x y -> ProductQ p1 q x y
+firstQ f (ProductQ p q) = ProductQ (f p) q
+
+{- | Map over the `sndQ` of a `ProductQ`.-}
+secondQ :: (q0 x y -> q1 x y) -> ProductQ p q0 x y -> ProductQ p q1 x y
+secondQ g (ProductQ p q) = ProductQ p (g q)
+
+{- | Map over the `fstQ` and `sndQ` of a `ProductQ`.-}
+productQ
+  :: (p0 x y -> p1 x y)
+  -> (q0 x y -> q1 x y)
+  -> ProductQ p0 q0 x y
+  -> ProductQ p1 q1 x y
+productQ f g (ProductQ p q) = ProductQ (f p) (g q)
+
+{- | Commutator of `ProductQ`.-}
+swapQ :: ProductQ p q x y -> ProductQ q p x y
+swapQ (ProductQ p q) = ProductQ q p
