@@ -220,7 +220,7 @@ class (CFunctor c, CPointed c) => CApplicative c where
   cap :: c (Quiver p q) x y -> c p x y -> c q x y
   cap = czip getQuiver
   czip
-    :: (forall x y z. p x y -> q x y -> r x y)
+    :: (forall x y. p x y -> q x y -> r x y)
     -> c p x y -> c q x y -> c r x y
   czip f p q = (Quiver . f) `cmap` p `cap` q
   {-# MINIMAL cap | czip #-}
