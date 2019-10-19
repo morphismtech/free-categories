@@ -360,6 +360,8 @@ instance CFunctor IQ where cmap f = IQ . f . getIQ
 instance CFoldable IQ where cfoldMap f (IQ c) = f c
 instance CTraversable IQ where ctraverse f (IQ c) = IQ <$> f c
 instance CPointed IQ where csingleton = IQ
+instance CApplicative IQ where czip f (IQ p) (IQ q) = IQ (f p q)
+instance CMonad IQ where cjoin = getIQ
 
 {- | Generalize `Maybe` to quivers.
 If @p@ is a @Semigroupoid@, @MaybeQ p@ can be
