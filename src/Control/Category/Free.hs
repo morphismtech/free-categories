@@ -215,7 +215,13 @@ class CFoldable c => CTraversable c where
 {- | Embed a single quiver arrow with `csingleton`.-}
 class CPointed c where csingleton :: p x y -> c p x y
 
-{- | Generalize `Applicative` to quivers. -}
+{- | Generalize `Applicative` to quivers.
+
+The functions `cap` and `czip` are related as
+
+prop> cap = czip getQuiver
+prop> czip f p q = (Quiver . f) `cmap` p `cap` q
+-}
 class (CFunctor c, CPointed c) => CApplicative c where
   cap :: c (Quiver p q) x y -> c p x y -> c q x y
   cap = czip getQuiver
@@ -225,7 +231,19 @@ class (CFunctor c, CPointed c) => CApplicative c where
   czip f p q = (Quiver . f) `cmap` p `cap` q
   {-# MINIMAL cap | czip #-}
 
-{- | Generalize `Monad` to quivers. -}
+{- | Generalize `Monad` to quivers.
+
+Associativity and left and right unit laws hold.
+
+prop> cjoin . cjoin = cjoin . cmap cjoin
+prop> cjoin . csingleton = id
+prop> cjoin . cmap csingleton = id
+
+The functions `cbind` and `cjoin` are related as
+
+prop> cjoin = cbind id
+prop> cbind f p = cjoin (cmap f p)
+-}
 class (CFunctor c, CPointed c) => CMonad c where
   cjoin :: c (c p) x y -> c p x y
   cjoin = cbind id
@@ -418,6 +436,14 @@ instance CMonad (EitherQ m) where
   cjoin (LeftQ m) = LeftQ m
   cjoin (RightQ (LeftQ m)) = LeftQ m
   cjoin (RightQ (RightQ p)) = RightQ p
+
+{- | The unit quiver.-}
+data UnitQ x y where UnitQ :: UnitQ x x
+instance Semigroup (UnitQ x y) where UnitQ <> UnitQ = UnitQ
+instance x ~ y => Monoid (UnitQ x y) where mempty = UnitQ
+instance Category UnitQ where
+  id = UnitQ
+  UnitQ . UnitQ = UnitQ
 
 {- | Product of quivers.-}
 data ProductQ p q x y = ProductQ
