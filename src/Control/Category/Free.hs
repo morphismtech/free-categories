@@ -346,7 +346,7 @@ instance Category (EndoR p) where
   id = EndoR id
   EndoR f1 . EndoR f2 = EndoR (f2 . f1)
 
-{- | Used in the default definition of `cfoldr`.-}
+{- | Used in the default definition of `cfoldl`.-}
 newtype EndoL p x y = EndoL {getEndoL :: forall w . p w x -> p w y}
 instance x ~ y => Semigroup (EndoL p x y) where (<>) = (>>>)
 instance x ~ y => Monoid (EndoL p x y) where mempty = id
