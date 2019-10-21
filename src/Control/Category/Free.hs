@@ -73,13 +73,9 @@ module Control.Category.Free
   , OpQ (..)
   , IsoQ (..)
   , IQ (..)
-  , MaybeQ (..)
-  , EitherQ (..)
   , ProductQ (..)
   , assocQ
   , disassocQ
-  , firstQ
-  , secondQ
   , productQ
   , swapQ
   ) where
@@ -416,76 +412,6 @@ instance CStrong IQ where csecond (ProductQ p (IQ q)) = IQ (ProductQ p q)
 instance CApplicative IQ where czip f (IQ p) (IQ q) = IQ (f p q)
 instance CMonad IQ where cjoin = getIQ
 
-{- | Generalize `Maybe` to quivers.
-If @p@ is a @Semigroupoid@, @MaybeQ p@ can be
-made into a `Category`. -}
-data MaybeQ p x y where
-  NoneQ :: MaybeQ p x x
-  OneQ :: p x y -> MaybeQ p x y
-deriving instance (Eq (p x y)) => Eq (MaybeQ p x y)
-deriving instance (Ord (p x y)) => Ord (MaybeQ p x y)
-deriving instance (Show (p x y)) => Show (MaybeQ p x y)
-instance CFunctor MaybeQ where
-  cmap _ NoneQ = NoneQ
-  cmap f (OneQ p) = OneQ (f p)
-instance CFoldable MaybeQ where
-  cfoldMap _ NoneQ = id
-  cfoldMap f (OneQ p) = f p
-instance CTraversable MaybeQ where
-  ctraverse _ NoneQ = pure NoneQ
-  ctraverse f (OneQ p) = OneQ <$> f p
-instance CPointed MaybeQ where csingleton = OneQ
-instance CStrong MaybeQ where
-  csecond (ProductQ _ NoneQ) = NoneQ
-  csecond (ProductQ p (OneQ q)) = OneQ (ProductQ p q)
-instance CApplicative MaybeQ where
-  cap NoneQ _ = NoneQ
-  cap _ NoneQ = NoneQ
-  cap (OneQ (Quiver f)) (OneQ p) = OneQ (f p)
-instance CMonad MaybeQ where
-  cjoin NoneQ = NoneQ
-  cjoin (OneQ NoneQ) = NoneQ
-  cjoin (OneQ (OneQ p)) = OneQ p
-
-{- | Generalize `Either` to quivers.
-If @m@ is a `Monoid` and @p@ is a @Semigroupoid@,
-@EitherQ m p@ can be made into a `Category`. -}
-data EitherQ m p x y where
-  LeftQ :: m -> EitherQ m p x x
-  RightQ :: p x y -> EitherQ m p x y
-deriving instance (Eq m, Eq (p x y)) => Eq (EitherQ m p x y)
-deriving instance (Ord m, Ord (p x y)) => Ord (EitherQ m p x y)
-deriving instance (Show m, Show (p x y)) => Show (EitherQ m p x y)
-instance CFunctor (EitherQ m) where
-  cmap _ (LeftQ m) = LeftQ m
-  cmap f (RightQ p) = RightQ (f p)
-instance CFoldable (EitherQ m) where
-  cfoldMap _ (LeftQ _) = id
-  cfoldMap f (RightQ p) = f p
-instance CTraversable (EitherQ m) where
-  ctraverse _ (LeftQ m) = pure (LeftQ m)
-  ctraverse f (RightQ p) = RightQ <$> f p
-instance CPointed (EitherQ m) where csingleton = RightQ
-instance CStrong (EitherQ m) where
-  csecond (ProductQ _ (LeftQ m)) = LeftQ m
-  csecond (ProductQ p (RightQ q)) = RightQ (ProductQ p q)
-instance CApplicative (EitherQ m) where
-  cap (LeftQ m) _ = LeftQ m
-  cap _ (LeftQ m) = LeftQ m
-  cap (RightQ (Quiver f)) (RightQ p) = RightQ (f p)
-instance CMonad (EitherQ m) where
-  cjoin (LeftQ m) = LeftQ m
-  cjoin (RightQ (LeftQ m)) = LeftQ m
-  cjoin (RightQ (RightQ p)) = RightQ p
-
-{- | The unit quiver.-}
-data UnitQ x y where UnitQ :: UnitQ x x
-instance Semigroup (UnitQ x y) where UnitQ <> UnitQ = UnitQ
-instance x ~ y => Monoid (UnitQ x y) where mempty = UnitQ
-instance Category UnitQ where
-  id = UnitQ
-  UnitQ . UnitQ = UnitQ
-
 {- | Product of quivers.-}
 data ProductQ p q x y = ProductQ
   { fstQ :: p x y
@@ -502,6 +428,7 @@ instance CFunctor (ProductQ p) where cmap f (ProductQ p q) = ProductQ p (f q)
 instance CFoldable (ProductQ p) where cfoldMap f (ProductQ _ q) = f q
 instance CTraversable (ProductQ p) where
   ctraverse f (ProductQ p q) = ProductQ p <$> f q
+instance CPointed (ProductQ (KQ ())) where csingleton = ProductQ (KQ ())
 
 {- | Associator of `ProductQ`.-}
 assocQ :: ProductQ p (ProductQ q r) x y -> ProductQ (ProductQ p q) r x y
@@ -510,14 +437,6 @@ assocQ (ProductQ p (ProductQ q r)) = ProductQ (ProductQ p q) r
 {- | Inverse associator of `ProductQ`.-}
 disassocQ :: ProductQ (ProductQ p q) r x y -> ProductQ p (ProductQ q r) x y
 disassocQ (ProductQ (ProductQ p q) r) = ProductQ p (ProductQ q r)
-
-{- | Map over the `fstQ` of a `ProductQ`.-}
-firstQ :: (p0 x y -> p1 x y) -> ProductQ p0 q x y -> ProductQ p1 q x y
-firstQ f (ProductQ p q) = ProductQ (f p) q
-
-{- | Map over the `sndQ` of a `ProductQ`.-}
-secondQ :: (q0 x y -> q1 x y) -> ProductQ p q0 x y -> ProductQ p q1 x y
-secondQ g (ProductQ p q) = ProductQ p (g q)
 
 {- | Map over the `fstQ` and `sndQ` of a `ProductQ`.-}
 productQ
