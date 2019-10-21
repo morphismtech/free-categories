@@ -236,9 +236,11 @@ class CFunctor c => CStrong c where
 {- | Generalize `Applicative` to quivers.
 
 The laws of a strong lax monoidal endofunctor hold.
-Letting `cunit = csingleton UnitQ` and `ctimes = czip ProductQ`,
 
-prop> cmap (productQ f g) (p `ctimes` q) = cmap f p `ctimes` cmap g q
+>>> let cunit = csingleton (KQ ())
+>>> let ctimes = czip ProductQ
+
+prop> cmap (f `productQ` g) (p `ctimes` q) = cmap f p `ctimes` cmap g q
 prop> cmap sndQ (cunit `ctimes` q) = q
 prop> cmap fstQ (p `ctimes` cunit) = p
 prop> cmap assocQ (p `ctimes` (q `ctimes` r)) = (p `ctimes` q) `ctimes` r
@@ -315,7 +317,13 @@ afterAll
   => (forall x. p x x) -> c p x y -> path p x y
 afterAll sep = cfoldMap (\p -> csingleton p >>> csingleton sep)
 
-{- | Morphism components of quivers. -}
+{- | Morphism components of quivers.
+
+Quivers form a Cartesian closed category with
+  * product `ProductQ`
+  * unit `KQ ()`
+  * internal hom `Quiver`
+-}
 newtype Quiver p q x y = Quiver { getQuiver :: p x y -> q x y }
 instance CFunctor (Quiver p) where cmap g (Quiver f) = Quiver (g . f)
 instance CPointed (Quiver p) where csingleton q = Quiver (const q)
@@ -428,7 +436,6 @@ instance CFunctor (ProductQ p) where cmap f (ProductQ p q) = ProductQ p (f q)
 instance CFoldable (ProductQ p) where cfoldMap f (ProductQ _ q) = f q
 instance CTraversable (ProductQ p) where
   ctraverse f (ProductQ p q) = ProductQ p <$> f q
-instance CPointed (ProductQ (KQ ())) where csingleton = ProductQ (KQ ())
 
 {- | Associator of `ProductQ`.-}
 assocQ :: ProductQ p (ProductQ q r) x y -> ProductQ (ProductQ p q) r x y
@@ -446,6 +453,6 @@ productQ
   -> ProductQ p1 q1 x y
 productQ f g (ProductQ p q) = ProductQ (f p) (g q)
 
-{- | Commutator of `ProductQ`.-}
+{- | Symmetry of `ProductQ`.-}
 swapQ :: ProductQ p q x y -> ProductQ q p x y
 swapQ (ProductQ p q) = ProductQ q p
