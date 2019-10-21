@@ -218,13 +218,17 @@ class CFoldable c => CTraversable c where
 {- | Embed a single quiver arrow with `csingleton`.-}
 class CPointed c where csingleton :: p x y -> c p x y
 
-{- | Generalizing strong `Functor`s.
+{- | Strength for quiver endofunctors with respect to `ProductQ`.
 
-/Note:/ Every 'Functor' in Haskell is strong with respect to @(,)@.
+/Note:/ Every `Functor` is strong with respect to @(,)@,
+but not every `CFunctor` is strong with respect to @ProductQ@.
 
-This describes strength for quiver endofunctors with respect to `ProductQ`.
+prop> csecond . productQ id csecond . disassocQ = cmap disassocQ . csecond
+prop> cmap sndQ . csecond = sndQ
 
-Not all quiver endofunctors are strong, for instance `Path` is not.
+`cfirst` and `csecond` are related as
+prop> cfirst = cmap swapQ . csecond . swapQ
+prop> csecond = cmap swapQ . cfirst . swapQ
 -}
 class CFunctor c => CStrong c where
   cfirst :: ProductQ (c p) q x y -> c (ProductQ p q) x y
