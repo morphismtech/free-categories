@@ -77,6 +77,13 @@ module Control.Category.Free
   , OpQ (..)
   , IsoQ (..)
   , IQ (..)
+  , ComposeQ (..)
+  , ExtendQ (..)
+  , LiftQ (..)
+  , CBifunctor
+  , CProfunctor
+  , CMonoidal
+  , CClosed
   ) where
 
 import Control.Category
@@ -453,10 +460,7 @@ instance Monoid m => Category (ReflQ m) where
   id = ReflQ mempty
   ReflQ yz . ReflQ xy = ReflQ (xy <> yz)
 
-data ComposeQ p q x z = forall y. ComposeQ
-  { oneQ :: p y z
-  , twoQ :: q x y
-  }
+data ComposeQ p q x z = forall y. ComposeQ (p y z) (q x y)
 deriving instance (forall x y. (Show (p x y), Show (q x y)))
   => Show (ComposeQ p q x y)
 instance CFunctor (ComposeQ p) where
