@@ -462,6 +462,9 @@ instance CApplicative IQ where czip f (IQ p) (IQ q) = IQ (f p q)
 instance CMonad IQ where cjoin = getIQ
 
 data ReflQ r x y where ReflQ :: r -> ReflQ r x x
+instance Monoid m => Category (ReflQ m) where
+  id = ReflQ mempty
+  ReflQ yz . ReflQ xy = ReflQ (xy <> yz)
 
 data ComposeQ p q x y where ComposeQ :: p y z -> q x y -> ComposeQ p q x z
 instance CFunctor (ComposeQ p) where
@@ -469,7 +472,7 @@ instance CFunctor (ComposeQ p) where
 instance Category p => CPointed (ComposeQ p) where
   csingleton = ComposeQ id
 instance Category p => CMonad (ComposeQ p) where
-  cjoin (ComposeQ p' (ComposeQ p q)) = ComposeQ (p' . p) q
+  cjoin (ComposeQ yz (ComposeQ xy q)) = ComposeQ (yz . xy) q
 
 newtype ExtendQ p q x y = ExtendQ {getExtendQ :: forall w. p w x -> q w y}
 instance CFunctor (ExtendQ p) where
