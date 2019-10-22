@@ -29,7 +29,7 @@ from quivers to `Category`s may be defined up to isomorphism as
 
 * the functor `FoldPath` of categorical folds
 
-* abstractly as @CFree path => path@,
+* abstractly as `CFree` @path => path@,
   the class of left adjoints to the functor which
   forgets the constraint on `Category` @c => c@
 
@@ -65,19 +65,19 @@ module Control.Category.Free
   , creverse
   , beforeAll
   , afterAll
-  , Quiver (..)
-  , EndoL (..)
-  , EndoR (..)
   , KQ (..)
-  , ApQ (..)
-  , OpQ (..)
-  , IsoQ (..)
-  , IQ (..)
   , ProductQ (..)
   , assocQ
   , disassocQ
   , productQ
   , swapQ
+  , Quiver (..)
+  , EndoL (..)
+  , EndoR (..)
+  , ApQ (..)
+  , OpQ (..)
+  , IsoQ (..)
+  , IQ (..)
   ) where
 
 import Control.Category
@@ -321,6 +321,53 @@ afterAll
   => (forall x. p x x) -> c p x y -> path p x y
 afterAll sep = cfoldMap (\p -> csingleton p >>> csingleton sep)
 
+{- | Turn a `Monoid` into a `Category`,
+used in the default definition of `ctoMonoid`.-}
+newtype KQ r x y = KQ {getKQ :: r} deriving (Eq, Ord, Show)
+instance (Semigroup m, x ~ y) => Semigroup (KQ m x y) where
+  KQ f <> KQ g = KQ (f <> g)
+instance (Monoid m, x ~ y) => Monoid (KQ m x y) where mempty = id
+instance Monoid m => Category (KQ m) where
+  id = KQ mempty
+  KQ g . KQ f = KQ (f <> g)
+
+{- | Product of quivers.-}
+data ProductQ p q x y = ProductQ
+  { fstQ :: p x y
+  , sndQ :: q x y
+  } deriving (Eq, Ord, Show)
+instance (Category p, Category q, x ~ y)
+  => Semigroup (ProductQ p q x y) where (<>) = (>>>)
+instance (Category p, Category q, x ~ y)
+  => Monoid (ProductQ p q x y) where mempty = id
+instance (Category p, Category q) => Category (ProductQ p q) where
+  id = ProductQ id id
+  ProductQ pyz qyz . ProductQ pxy qxy = ProductQ (pyz . pxy) (qyz . qxy)
+instance CFunctor (ProductQ p) where cmap f (ProductQ p q) = ProductQ p (f q)
+instance CFoldable (ProductQ p) where cfoldMap f (ProductQ _ q) = f q
+instance CTraversable (ProductQ p) where
+  ctraverse f (ProductQ p q) = ProductQ p <$> f q
+
+{- | Associator of `ProductQ`.-}
+assocQ :: ProductQ p (ProductQ q r) x y -> ProductQ (ProductQ p q) r x y
+assocQ (ProductQ p (ProductQ q r)) = ProductQ (ProductQ p q) r
+
+{- | Inverse associator of `ProductQ`.-}
+disassocQ :: ProductQ (ProductQ p q) r x y -> ProductQ p (ProductQ q r) x y
+disassocQ (ProductQ (ProductQ p q) r) = ProductQ p (ProductQ q r)
+
+{- | Map over the `fstQ` and `sndQ` of a `ProductQ`.-}
+productQ
+  :: (p0 x y -> p1 x y)
+  -> (q0 x y -> q1 x y)
+  -> ProductQ p0 q0 x y
+  -> ProductQ p1 q1 x y
+productQ f g (ProductQ p q) = ProductQ (f p) (g q)
+
+{- | Symmetry of `ProductQ`.-}
+swapQ :: ProductQ p q x y -> ProductQ q p x y
+swapQ (ProductQ p q) = ProductQ q p
+
 {- | Morphism components of quivers.
 
 Quivers form a Cartesian closed category with
@@ -353,16 +400,6 @@ instance x ~ y => Monoid (EndoL p x y) where mempty = id
 instance Category (EndoL p) where
   id = EndoL id
   EndoL f1 . EndoL f2 = EndoL (f1 . f2)
-
-{- | Turn a `Monoid` into a `Category`,
-used in the default definition of `ctoMonoid`.-}
-newtype KQ m x y = KQ {getKQ :: m} deriving (Eq, Ord, Show)
-instance (Semigroup m, x ~ y) => Semigroup (KQ m x y) where
-  KQ f <> KQ g = KQ (f <> g)
-instance (Monoid m, x ~ y) => Monoid (KQ m x y) where mempty = id
-instance Monoid m => Category (KQ m) where
-  id = KQ mempty
-  KQ g . KQ f = KQ (f <> g)
 
 {- | Turn an `Applicative` over a `Category` into a `Category`,
 used in the default definition of `ctraverse_`.-}
@@ -424,39 +461,30 @@ instance CStrong IQ where csecond (ProductQ p (IQ q)) = IQ (ProductQ p q)
 instance CApplicative IQ where czip f (IQ p) (IQ q) = IQ (f p q)
 instance CMonad IQ where cjoin = getIQ
 
-{- | Product of quivers.-}
-data ProductQ p q x y = ProductQ
-  { fstQ :: p x y
-  , sndQ :: q x y
-  } deriving (Eq, Ord, Show)
-instance (Category p, Category q, x ~ y)
-  => Semigroup (ProductQ p q x y) where (<>) = (>>>)
-instance (Category p, Category q, x ~ y)
-  => Monoid (ProductQ p q x y) where mempty = id
-instance (Category p, Category q) => Category (ProductQ p q) where
-  id = ProductQ id id
-  ProductQ pyz qyz . ProductQ pxy qxy = ProductQ (pyz . pxy) (qyz . qxy)
-instance CFunctor (ProductQ p) where cmap f (ProductQ p q) = ProductQ p (f q)
-instance CFoldable (ProductQ p) where cfoldMap f (ProductQ _ q) = f q
-instance CTraversable (ProductQ p) where
-  ctraverse f (ProductQ p q) = ProductQ p <$> f q
+data ReflQ r x y where ReflQ :: r -> ReflQ r x x
 
-{- | Associator of `ProductQ`.-}
-assocQ :: ProductQ p (ProductQ q r) x y -> ProductQ (ProductQ p q) r x y
-assocQ (ProductQ p (ProductQ q r)) = ProductQ (ProductQ p q) r
+data ComposeQ p q x y where ComposeQ :: p y z -> q x y -> ComposeQ p q x z
+instance CFunctor (ComposeQ p) where
+  cmap f (ComposeQ p q) = ComposeQ p (f q)
+instance Category p => CPointed (ComposeQ p) where
+  csingleton = ComposeQ id
+instance Category p => CMonad (ComposeQ p) where
+  cjoin (ComposeQ p' (ComposeQ p q)) = ComposeQ (p' . p) q
 
-{- | Inverse associator of `ProductQ`.-}
-disassocQ :: ProductQ (ProductQ p q) r x y -> ProductQ p (ProductQ q r) x y
-disassocQ (ProductQ (ProductQ p q) r) = ProductQ p (ProductQ q r)
+newtype ExtendQ p q x y = ExtendQ {getExtendQ :: forall w. p w x -> q w y}
+instance CFunctor (ExtendQ p) where
+  cmap g (ExtendQ f) = ExtendQ (g . f)
+instance (p ~ q, x ~ y) => Semigroup (ExtendQ p q x y) where (<>) = (>>>)
+instance (p ~ q, x ~ y) => Monoid (ExtendQ p q x y) where mempty = id
+instance p ~ q => Category (ExtendQ p q) where
+  id = ExtendQ id
+  ExtendQ g . ExtendQ f = ExtendQ (g . f)
 
-{- | Map over the `fstQ` and `sndQ` of a `ProductQ`.-}
-productQ
-  :: (p0 x y -> p1 x y)
-  -> (q0 x y -> q1 x y)
-  -> ProductQ p0 q0 x y
-  -> ProductQ p1 q1 x y
-productQ f g (ProductQ p q) = ProductQ (f p) (g q)
-
-{- | Symmetry of `ProductQ`.-}
-swapQ :: ProductQ p q x y -> ProductQ q p x y
-swapQ (ProductQ p q) = ProductQ q p
+newtype LiftQ p q x y = LiftQ {getLiftQ :: forall z. p y z -> q x z}
+instance CFunctor (LiftQ p) where
+  cmap g (LiftQ f) = LiftQ (g . f)
+instance (p ~ q, x ~ y) => Semigroup (LiftQ p q x y) where (<>) = (>>>)
+instance (p ~ q, x ~ y) => Monoid (LiftQ p q x y) where mempty = id
+instance p ~ q => Category (LiftQ p q) where
+  id = LiftQ id
+  LiftQ f . LiftQ g = LiftQ (g . f)
