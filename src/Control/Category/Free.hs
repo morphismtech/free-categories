@@ -38,6 +38,7 @@ from quivers to `Category`s may be defined up to isomorphism as
 
 {-# LANGUAGE
     FlexibleInstances
+  , FunctionalDependencies
   , GADTs
   , LambdaCase
   , MultiParamTypeClasses
@@ -72,8 +73,6 @@ module Control.Category.Free
   , productQ
   , swapQ
   , Quiver (..)
-  , EndoL (..)
-  , EndoR (..)
   , ApQ (..)
   , OpQ (..)
   , IsoQ (..)
@@ -182,7 +181,7 @@ class CFunctor c => CFoldable c where
   prop> cfoldr (?) q (p1 :>> p2 :>> ... :>> pn :>> Done) == p1 ? (p2 ? ... (pn ? q) ...)
   -}
   cfoldr :: (forall x y z . p x y -> q y z -> q x z) -> q y z -> c p x y -> q x z
-  cfoldr (?) q c = getEndoR (cfoldMap (\ x -> EndoR (\ y -> x ? y)) c) q
+  cfoldr (?) q c = getLiftQ (cfoldMap (\ x -> LiftQ (\ y -> x ? y)) c) q
   {- | Left-associative fold of a structure.
 
   In the case of `Path`s, `cfoldl`, when applied to a binary operator,
@@ -192,7 +191,7 @@ class CFunctor c => CFoldable c where
   prop> cfoldl (?) q (p1 :>> p2 :>> ... :>> pn :>> Done) == (... ((q ? p1) ? p2) ? ...) ? pn
   -}
   cfoldl :: (forall x y z . q x y -> p y z -> q x z) -> q x y -> c p y z -> q x z
-  cfoldl (?) q c = getEndoL (cfoldMap (\ x -> EndoL (\ y -> y ? x)) c) q
+  cfoldl (?) q c = getExtendQ (cfoldMap (\ x -> ExtendQ (\ y -> y ? x)) c) q
   {- | Map each element of the structure to a `Monoid`,
   and combine the results.-}
   ctoMonoid :: Monoid m => (forall x y. p x y -> m) -> c p x y -> m
@@ -347,6 +346,8 @@ instance CFunctor (ProductQ p) where cmap f (ProductQ p q) = ProductQ p (f q)
 instance CFoldable (ProductQ p) where cfoldMap f (ProductQ _ q) = f q
 instance CTraversable (ProductQ p) where
   ctraverse f (ProductQ p q) = ProductQ p <$> f q
+instance CBifunctor ProductQ where
+  cbimap f g (ProductQ p q) = ProductQ (f p) (g q)
 
 {- | Associator of `ProductQ`.-}
 assocQ :: ProductQ p (ProductQ q r) x y -> ProductQ (ProductQ p q) r x y
@@ -384,22 +385,8 @@ instance CApplicative (Quiver p) where
   cap (Quiver cf) (Quiver cq) = Quiver (\p -> getQuiver (cf p) (cq p))
 instance CMonad (Quiver p) where
   cjoin (Quiver q) = Quiver (\p -> getQuiver (q p) p)
-
-{- | Used in the default definition of `cfoldr`.-}
-newtype EndoR p y x = EndoR {getEndoR :: forall z. p x z -> p y z}
-instance x ~ y => Semigroup (EndoR p y x) where (<>) = (>>>)
-instance x ~ y => Monoid (EndoR p x y) where mempty = id
-instance Category (EndoR p) where
-  id = EndoR id
-  EndoR f1 . EndoR f2 = EndoR (f2 . f1)
-
-{- | Used in the default definition of `cfoldl`.-}
-newtype EndoL p x y = EndoL {getEndoL :: forall w . p w x -> p w y}
-instance x ~ y => Semigroup (EndoL p x y) where (<>) = (>>>)
-instance x ~ y => Monoid (EndoL p x y) where mempty = id
-instance Category (EndoL p) where
-  id = EndoL id
-  EndoL f1 . EndoL f2 = EndoL (f1 . f2)
+instance CProfunctor Quiver where
+  cdimap f h (Quiver g) = Quiver (h . g . f)
 
 {- | Turn an `Applicative` over a `Category` into a `Category`,
 used in the default definition of `ctraverse_`.-}
@@ -466,13 +453,20 @@ instance Monoid m => Category (ReflQ m) where
   id = ReflQ mempty
   ReflQ yz . ReflQ xy = ReflQ (xy <> yz)
 
-data ComposeQ p q x y where ComposeQ :: p y z -> q x y -> ComposeQ p q x z
+data ComposeQ p q x z = forall y. ComposeQ
+  { oneQ :: p y z
+  , twoQ :: q x y
+  }
+deriving instance (forall x y. (Show (p x y), Show (q x y)))
+  => Show (ComposeQ p q x y)
 instance CFunctor (ComposeQ p) where
   cmap f (ComposeQ p q) = ComposeQ p (f q)
 instance Category p => CPointed (ComposeQ p) where
   csingleton = ComposeQ id
 instance Category p => CMonad (ComposeQ p) where
   cjoin (ComposeQ yz (ComposeQ xy q)) = ComposeQ (yz . xy) q
+instance CBifunctor ComposeQ where
+  cbimap f g (ComposeQ p q) = ComposeQ (f p) (g q)
 
 newtype ExtendQ p q x y = ExtendQ {getExtendQ :: forall w. p w x -> q w y}
 instance CFunctor (ExtendQ p) where
@@ -482,6 +476,8 @@ instance (p ~ q, x ~ y) => Monoid (ExtendQ p q x y) where mempty = id
 instance p ~ q => Category (ExtendQ p q) where
   id = ExtendQ id
   ExtendQ g . ExtendQ f = ExtendQ (g . f)
+instance CProfunctor ExtendQ where
+  cdimap f h (ExtendQ g) = ExtendQ (h . g . f)
 
 newtype LiftQ p q x y = LiftQ {getLiftQ :: forall z. p y z -> q x z}
 instance CFunctor (LiftQ p) where
@@ -491,3 +487,56 @@ instance (p ~ q, x ~ y) => Monoid (LiftQ p q x y) where mempty = id
 instance p ~ q => Category (LiftQ p q) where
   id = LiftQ id
   LiftQ f . LiftQ g = LiftQ (g . f)
+instance CProfunctor LiftQ where
+  cdimap f h (LiftQ g) = LiftQ (h . g . f)
+
+class (CBifunctor prod, CProfunctor lhom, CProfunctor rhom)
+  => CClosed prod lhom rhom | prod -> lhom, prod -> rhom where
+    ccurry :: (forall x y. prod p q x y -> r x y) -> p x y -> lhom q r x y
+    cuncurry :: (forall x y. p x y -> lhom q r x y) -> prod p q x y -> r x y
+    cflurry :: (forall x y. prod p q x y -> r x y) -> q x y -> rhom p r x y
+    cunflurry :: (forall x y. q x y -> rhom p r x y) -> prod p q x y -> r x y
+instance CClosed ProductQ Quiver Quiver where
+  ccurry f p = Quiver (\q -> f (ProductQ p q))
+  cuncurry f (ProductQ p q) = getQuiver (f p) q
+  cflurry f q = Quiver (\p -> f (ProductQ p q))
+  cunflurry f (ProductQ p q) = getQuiver (f q) p
+instance CClosed ComposeQ ExtendQ LiftQ where
+  ccurry f p = ExtendQ (\q -> f (ComposeQ p q))
+  cuncurry f (ComposeQ p q) = getExtendQ (f p) q
+  cflurry f q = LiftQ (\p -> f (ComposeQ p q))
+  cunflurry f (ComposeQ p q) = getLiftQ (f q) p
+
+class CBifunctor prod => CMonoidal prod unit | prod -> unit where
+  cintro1 :: p x y -> prod unit p x y
+  cintro2 :: p x y -> prod p unit x y
+  celim1 :: prod unit p x y -> p x y
+  celim2 :: prod p unit x y -> p x y
+  cassoc :: prod p (prod q r) x y -> prod (prod p q) r x y
+  cdisassoc :: prod (prod p q) r x y -> prod p (prod q r) x y
+instance CMonoidal ProductQ (KQ ()) where
+  cintro1 p = ProductQ (KQ ()) p
+  cintro2 p = ProductQ p (KQ ())
+  celim1 (ProductQ _ p) = p
+  celim2 (ProductQ p _) = p
+  cassoc (ProductQ p (ProductQ q r)) = ProductQ (ProductQ p q) r
+  cdisassoc (ProductQ (ProductQ p q) r) = ProductQ p (ProductQ q r)
+instance CMonoidal ComposeQ (ReflQ ()) where
+  cintro1 p = ComposeQ (ReflQ ()) p
+  cintro2 p = ComposeQ p (ReflQ ())
+  celim1 (ComposeQ (ReflQ ()) p) = p
+  celim2 (ComposeQ p (ReflQ ())) = p
+  cassoc (ComposeQ p (ComposeQ q r)) = ComposeQ (ComposeQ p q) r
+  cdisassoc (ComposeQ (ComposeQ p q) r) = ComposeQ p (ComposeQ q r)
+
+class (forall q. CFunctor (prod q)) => CBifunctor prod where
+  cbimap
+    :: (forall x y. p x y -> p' x y)
+    -> (forall x y. q x y -> q' x y)
+    -> prod p q x y -> prod p' q' x y
+
+class (forall q. CFunctor (hom q)) => CProfunctor hom where
+  cdimap
+    :: (forall x y. p' x y -> p x y)
+    -> (forall x y. q x y -> q' x y)
+    -> hom p q x y -> hom p' q' x y
