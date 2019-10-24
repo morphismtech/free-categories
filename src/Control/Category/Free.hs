@@ -5,22 +5,20 @@ Copyright: (c) Eitan Chatav, 2019
 Maintainer: eitan@morphism.tech
 Stability: experimental
 
-Consider the category of Haskell "quivers" with
-
-* objects are types of higher kind
-  * @p :: k -> k -> Type@
-* morphisms are terms of @RankNType@,
-  * @forall x y. p x y -> q x y@
-* identity is `id`
-* composition is `.`
-
-Now, consider the subcategory of Haskell `Category`s with
+Consider the category of Haskell `Category`s, a subcategory
+of the category of quivers with,
 
 * constrained objects `Category` @c => c@
 * morphisms act functorially
   * @t :: (Category c, Category d) => c x y -> d x y@
   * @t id = id@
   * @t (g . f) = t g . t f@
+
+A functor from quivers to `Category`s
+has @(CFunctor c, forall p. Category (c p))@ with
+
+prop> cmap f id = id
+prop> cmap f (q . p) = cmap f q . cmap f p
 
 The [free category functor](https://ncatlab.org/nlab/show/free+category)
 from quivers to `Category`s may be defined up to isomorphism as
@@ -154,13 +152,13 @@ toPath = cfoldMap csingleton
 creverse :: (CFoldable c, CFree path) => c p x y -> path (OpQ p) y x
 creverse = getOpQ . cfoldMap (OpQ . csingleton . OpQ)
 
-{- | Insert a given endo before each step. -}
+{- | Insert a given loop before each step. -}
 beforeAll
   :: (CFoldable c, CFree path)
   => (forall x. p x x) -> c p x y -> path p x y
 beforeAll sep = cfoldMap (\p -> csingleton sep >>> csingleton p)
 
-{- | Insert a given endo before each step. -}
+{- | Insert a given loop before each step. -}
 afterAll
   :: (CFoldable c, CFree path)
   => (forall x. p x x) -> c p x y -> path p x y

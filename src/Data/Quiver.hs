@@ -5,6 +5,17 @@ Copyright: (c) Eitan Chatav, 2019
 Maintainer: eitan@morphism.tech
 Stability: experimental
 
+A quiver is a directed graph where loops and multiple arrows
+between vertices is allowed, a multidigraph. A Haskell quiver
+is a higher kinded type,
+
+@p :: k -> k -> Type@
+
+  * where vertices are types @x :: k@,
+  * and edges from @x@ to @y@ are terms @p :: p x y@.
+
+Many Haskell typeclasses constraints on quivers, such as
+`Category`, `Data.Bifunctor.Bifunctor`, @Profunctor@, `Control.Arrow.Arrow`.
 -}
 
 {-# LANGUAGE
@@ -34,8 +45,11 @@ import Control.Category
 import Control.Monad (join)
 import Prelude hiding (id, (.))
 
-{- | Turn a `Monoid` into a `Category`,
-used in the default definition of `ctoMonoid`.-}
+{- | The constant quiver.
+
+@KQ ()@ is an [indiscrete category]
+(https://ncatlab.org/nlab/show/indiscrete+category).
+-}
 newtype KQ r x y = KQ {getKQ :: r} deriving (Eq, Ord, Show)
 instance (Semigroup m, x ~ y) => Semigroup (KQ m x y) where
   KQ f <> KQ g = KQ (f <> g)
@@ -61,17 +75,10 @@ instance (Category p, Category q) => Category (ProductQ p q) where
 swapQ :: ProductQ p q x y -> ProductQ q p x y
 swapQ (ProductQ p q) = ProductQ q p
 
-{- | Morphism components of quivers.
-
-Quivers form a Cartesian closed category with
-  * product `ProductQ`
-  * unit `KQ ()`
-  * internal hom `Quiver`
--}
+{- | The quiver of quiver morphisms.-}
 newtype Quiver p q x y = Quiver { getQuiver :: p x y -> q x y }
 
-{- | Turn an `Applicative` over a `Category` into a `Category`,
-used in the default definition of `ctraverse_`.-}
+{- | Turn an `Applicative` over a `Category` into a `Category`.-}
 newtype ApQ m c x y = ApQ {getApQ :: m (c x y)} deriving (Eq, Ord, Show)
 instance (Applicative m, Category c, x ~ y)
   => Semigroup (ApQ m c x y) where (<>) = (>>>)
@@ -133,16 +140,18 @@ instance (Category p, p ~ q) => Category (ComposeQ p q) where
   id = ComposeQ id id
   ComposeQ pyz qxy . ComposeQ pwx qvw = ComposeQ (pyz . qxy) (pwx . qvw)
 
-{- | The left internal hom of `ComposeQ`.-}
-newtype ExtendQ p q x y = ExtendQ {getExtendQ :: forall w. p w x -> q w y}
+{- | The left residual of `ComposeQ`.-}
+newtype ExtendQ p q x y = ExtendQ
+  {getExtendQ :: forall w. p w x -> q w y}
 instance (p ~ q, x ~ y) => Semigroup (ExtendQ p q x y) where (<>) = (>>>)
 instance (p ~ q, x ~ y) => Monoid (ExtendQ p q x y) where mempty = id
 instance p ~ q => Category (ExtendQ p q) where
   id = ExtendQ id
   ExtendQ g . ExtendQ f = ExtendQ (g . f)
 
-{- | The right internal hom of `ComposeQ`.-}
-newtype LiftQ p q x y = LiftQ {getLiftQ :: forall z. p y z -> q x z}
+{- | The right residual of `ComposeQ`.-}
+newtype LiftQ p q x y = LiftQ
+  {getLiftQ :: forall z. p y z -> q x z}
 instance (p ~ q, x ~ y) => Semigroup (LiftQ p q x y) where (<>) = (>>>)
 instance (p ~ q, x ~ y) => Monoid (LiftQ p q x y) where mempty = id
 instance p ~ q => Category (LiftQ p q) where

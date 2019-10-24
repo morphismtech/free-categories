@@ -5,6 +5,18 @@ Copyright: (c) Eitan Chatav, 2019
 Maintainer: eitan@morphism.tech
 Stability: experimental
 
+Consider the category of Haskell quivers with
+
+* objects are types of higher kind
+  * @p :: k -> k -> Type@
+* morphisms are terms of @RankNType@,
+  * @forall x y. p x y -> q x y@
+* identity is `id`
+* composition is `.`
+
+There is a natural hierarchy of typeclasses for
+endofunctors of the category of Haskell quivers,
+analagous to that for Haskell types.
 -}
 
 {-# LANGUAGE
@@ -30,12 +42,6 @@ import Prelude hiding (id, (.))
 
 prop> cmap id = id
 prop> cmap (g . f) = cmap g . cmap f
-
-A functor from quivers to `Category`s
-has @(CFunctor c, forall p. Category (c p))@ with
-
-prop> cmap f id = id
-prop> cmap f (q . p) = cmap f q . cmap f p
 -}
 class CFunctor c where
   cmap :: (forall x y. p x y -> q x y) -> c p x y -> c q x y
@@ -62,8 +68,10 @@ class CFunctor c => CFoldable c where
   cfold = cfoldMap id
   {- | Right-associative fold of a structure.
 
-  In the case of `Path`s, `cfoldr`, when applied to a binary operator,
-  a starting value, and a `Path`, reduces the `Path` using the binary operator,
+  In the case of `Control.Category.Free.Path`s,
+  `cfoldr`, when applied to a binary operator,
+  a starting value, and a `Control.Category.Free.Path`,
+  reduces the `Control.Category.Free.Path` using the binary operator,
   from right to left:
 
   prop> cfoldr (?) q (p1 :>> p2 :>> ... :>> pn :>> Done) == p1 ? (p2 ? ... (pn ? q) ...)
@@ -72,8 +80,10 @@ class CFunctor c => CFoldable c where
   cfoldr (?) q c = getLiftQ (cfoldMap (\ x -> LiftQ (\ y -> x ? y)) c) q
   {- | Left-associative fold of a structure.
 
-  In the case of `Path`s, `cfoldl`, when applied to a binary operator,
-  a starting value, and a `Path`, reduces the `Path` using the binary operator,
+  In the case of `Control.Category.Free.Path`s,
+  `cfoldl`, when applied to a binary operator,
+  a starting value, and a `Control.Category.Free.Path`,
+  reduces the `Control.Category.Free.Path` using the binary operator,
   from left to right:
 
   prop> cfoldl (?) q (p1 :>> p2 :>> ... :>> pn :>> Done) == (... ((q ? p1) ? p2) ? ...) ? pn
@@ -114,13 +124,15 @@ instance Applicative t => CPointed (ApQ t) where csingleton = ApQ . pure
 instance CPointed IQ where csingleton = IQ
 instance Category p => CPointed (ComposeQ p) where csingleton = ComposeQ id
 
-{- | Strength for quiver endofunctors with respect to `ProductQ`.
+{- | [Strength]
+(https://ncatlab.org/nlab/show/tensorial+strength)
+for quiver endofunctors with respect to `ProductQ`.
 
 /Note:/ Every `Functor` is strong with respect to @(,)@,
 but not every `CFunctor` is strong with respect to @ProductQ@.
 
-prop> csecond . productQ id csecond . disassocQ = cmap disassocQ . csecond
-prop> cmap sndQ . csecond = sndQ
+prop> csecond . cmap csecond . cassoc = cmap cassoc . csecond
+prop> cmap elim1 . csecond = elim1
 
 `cfirst` and `csecond` are related as
 prop> cfirst = cmap swapQ . csecond . swapQ
@@ -145,10 +157,10 @@ The laws of a strong lax monoidal endofunctor hold.
 >>> let cunit = csingleton (KQ ())
 >>> let ctimes = czip ProductQ
 
-prop> cmap (f `productQ` g) (p `ctimes` q) = cmap f p `ctimes` cmap g q
-prop> cmap sndQ (cunit `ctimes` q) = q
-prop> cmap fstQ (p `ctimes` cunit) = p
-prop> cmap assocQ (p `ctimes` (q `ctimes` r)) = (p `ctimes` q) `ctimes` r
+prop> cmap (f `cbimap` g) (p `ctimes` q) = cmap f p `ctimes` cmap g q
+prop> cmap celim1 (cunit `ctimes` q) = q
+prop> cmap celim2 (p `ctimes` cunit) = p
+prop> cmap cassoc ((p `ctimes` q) `ctimes` r) = p `ctimes` (q `ctimes` r)
 
 The functions `cap` and `czip` are related as
 
