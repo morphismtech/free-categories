@@ -144,6 +144,8 @@ class CFunctor c => CStrong c where
   csecond :: ProductQ p (c q) x y -> c (ProductQ p q) x y
   csecond = cmap swapQ . cfirst . swapQ
   {-# MINIMAL cfirst | csecond #-}
+instance CStrong (ProductQ q) where
+  csecond (ProductQ p (ProductQ q r)) = ProductQ q (ProductQ p r)
 instance CStrong (Quiver p) where
   csecond (ProductQ p (Quiver f)) = Quiver (ProductQ p . f)
 instance Functor t => CStrong (ApQ t) where
