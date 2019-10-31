@@ -14,7 +14,7 @@ is a higher kinded type,
   * where vertices are types @x :: k@,
   * and edges from @x@ to @y@ are terms @p :: p x y@.
 
-Many Haskell typeclasses constraints on quivers, such as
+Many Haskell typeclasses are constraints on quivers, such as
 `Category`, `Data.Bifunctor.Bifunctor`, @Profunctor@, `Control.Arrow.Arrow`.
 -}
 

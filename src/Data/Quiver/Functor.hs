@@ -26,11 +26,9 @@ analagous to that for Haskell types.
 
 module Data.Quiver.Functor
   ( CFunctor (..)
+  , CPointed (..)
   , CFoldable (..)
   , CTraversable (..)
-  , CPointed (..)
-  , CStrong (..)
-  , CApplicative (..)
   , CMonad (..)
   ) where
 
@@ -123,65 +121,6 @@ instance CPointed (Quiver p) where csingleton q = Quiver (const q)
 instance Applicative t => CPointed (ApQ t) where csingleton = ApQ . pure
 instance CPointed IQ where csingleton = IQ
 instance Category p => CPointed (ComposeQ p) where csingleton = ComposeQ id
-
-{- | [Strength]
-(https://ncatlab.org/nlab/show/tensorial+strength)
-for quiver endofunctors with respect to `ProductQ`.
-
-/Note:/ Every `Functor` is strong with respect to @(,)@,
-but not every `CFunctor` is strong with respect to @ProductQ@.
-
-prop> csecond . cmap csecond . cassoc = cmap cassoc . csecond
-prop> cmap elim1 . csecond = elim1
-
-`cfirst` and `csecond` are related as
-prop> cfirst = cmap swapQ . csecond . swapQ
-prop> csecond = cmap swapQ . cfirst . swapQ
--}
-class CFunctor c => CStrong c where
-  cfirst :: ProductQ (c p) q x y -> c (ProductQ p q) x y
-  cfirst = cmap swapQ . csecond . swapQ
-  csecond :: ProductQ p (c q) x y -> c (ProductQ p q) x y
-  csecond = cmap swapQ . cfirst . swapQ
-  {-# MINIMAL cfirst | csecond #-}
-instance CStrong (ProductQ q) where
-  csecond (ProductQ p (ProductQ q r)) = ProductQ q (ProductQ p r)
-instance CStrong (Quiver p) where
-  csecond (ProductQ p (Quiver f)) = Quiver (ProductQ p . f)
-instance Functor t => CStrong (ApQ t) where
-  csecond (ProductQ p (ApQ t)) = ApQ (ProductQ p <$> t)
-instance CStrong IQ where csecond (ProductQ p (IQ q)) = IQ (ProductQ p q)
-
-{- | Generalize `Applicative` to quivers.
-
-The laws of a strong lax monoidal endofunctor hold.
-
->>> let cunit = csingleton (KQ ())
->>> let ctimes = czip ProductQ
-
-prop> cmap (f `cbimap` g) (p `ctimes` q) = cmap f p `ctimes` cmap g q
-prop> cmap celim1 (cunit `ctimes` q) = q
-prop> cmap celim2 (p `ctimes` cunit) = p
-prop> cmap cassoc ((p `ctimes` q) `ctimes` r) = p `ctimes` (q `ctimes` r)
-
-The functions `cap` and `czip` are related as
-
-prop> cap = czip getQuiver
-prop> czip f p q = (Quiver . f) `cmap` p `cap` q
--}
-class (CStrong c, CPointed c) => CApplicative c where
-  cap :: c (Quiver p q) x y -> c p x y -> c q x y
-  cap = czip getQuiver
-  czip
-    :: (forall x y. p x y -> q x y -> r x y)
-    -> c p x y -> c q x y -> c r x y
-  czip f p q = (Quiver . f) `cmap` p `cap` q
-  {-# MINIMAL cap | czip #-}
-instance CApplicative (Quiver p) where
-  cap (Quiver cf) (Quiver cq) = Quiver (\p -> getQuiver (cf p) (cq p))
-instance Applicative t => CApplicative (ApQ t) where
-  czip f (ApQ tp) (ApQ tq) = ApQ (f <$> tp <*> tq)
-instance CApplicative IQ where czip f (IQ p) (IQ q) = IQ (f p q)
 
 {- | Generalize `Monad` to quivers.
 
