@@ -53,6 +53,13 @@ instance CFunctor (ComposeQ p) where cmap f (ComposeQ p q) = ComposeQ p (f q)
 instance CFunctor (ExtendQ p) where cmap g (ExtendQ f) = ExtendQ (g . f)
 instance CFunctor (LiftQ p) where cmap g (LiftQ f) = LiftQ (g . f)
 
+{- | Embed a single quiver arrow with `csingleton`.-}
+class CFunctor c => CPointed c where csingleton :: p x y -> c p x y
+instance CPointed (Quiver p) where csingleton q = Quiver (const q)
+instance Applicative t => CPointed (ApQ t) where csingleton = ApQ . pure
+instance CPointed IQ where csingleton = IQ
+instance Category p => CPointed (ComposeQ p) where csingleton = ComposeQ id
+
 {- | Generalizing `Foldable` from `Monoid`s to `Category`s.
 
 prop> cmap f = cfoldMap (csingleton . f)
@@ -114,13 +121,6 @@ class CFoldable c => CTraversable c where
 instance CTraversable (ProductQ p) where
   ctraverse f (ProductQ p q) = ProductQ p <$> f q
 instance CTraversable IQ where ctraverse f (IQ c) = IQ <$> f c
-
-{- | Embed a single quiver arrow with `csingleton`.-}
-class CFunctor c => CPointed c where csingleton :: p x y -> c p x y
-instance CPointed (Quiver p) where csingleton q = Quiver (const q)
-instance Applicative t => CPointed (ApQ t) where csingleton = ApQ . pure
-instance CPointed IQ where csingleton = IQ
-instance Category p => CPointed (ComposeQ p) where csingleton = ComposeQ id
 
 {- | Generalize `Monad` to quivers.
 
