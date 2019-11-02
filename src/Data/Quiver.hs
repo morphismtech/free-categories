@@ -5,17 +5,19 @@ Copyright: (c) Eitan Chatav, 2019
 Maintainer: eitan@morphism.tech
 Stability: experimental
 
-A quiver is a directed graph where loops and multiple arrows
-between vertices is allowed, a multidigraph. A Haskell quiver
+A [quiver](https://ncatlab.org/nlab/show/quiver)
+is a directed graph where loops and multiple arrows
+between vertices are allowed, a multidigraph. A Haskell quiver
 is a higher kinded type,
 
 @p :: k -> k -> Type@
 
   * where vertices are types @x :: k@,
-  * and edges from @x@ to @y@ are terms @p :: p x y@.
+  * and arrows from @x@ to @y@ are terms @p :: p x y@.
 
 Many Haskell typeclasses are constraints on quivers, such as
-`Category`, `Data.Bifunctor.Bifunctor`, @Profunctor@, `Control.Arrow.Arrow`.
+`Category`, `Data.Bifunctor.Bifunctor`,
+@Profunctor@, and `Control.Arrow.Arrow`.
 -}
 
 {-# LANGUAGE
@@ -61,7 +63,7 @@ instance Category c => Category (OpQ c) where
   id = OpQ id
   OpQ g . OpQ f = OpQ (f . g)
 
-{- | Turn all arrows in a quiver into bidirectional edges.-}
+{- | Arrows of `IsoQ` are bidirectional edges.-}
 data IsoQ c x y = IsoQ
   { up :: c x y
   , down :: c y x
@@ -72,7 +74,7 @@ instance Category c => Category (IsoQ c) where
   id = IsoQ id id
   (IsoQ yz zy) . (IsoQ xy yx) = IsoQ (yz . xy) (yx . zy)
 
-{- | Turn an `Applicative` over a `Category` into a `Category`.-}
+{- | Apply a constructor to the arrows of a quiver.-}
 newtype ApQ m c x y = ApQ {getApQ :: m (c x y)} deriving (Eq, Ord, Show)
 instance (Applicative m, Category c, x ~ y)
   => Semigroup (ApQ m c x y) where (<>) = (>>>)
@@ -95,7 +97,9 @@ instance Monoid m => Category (KQ m) where
   id = KQ mempty
   KQ g . KQ f = KQ (f <> g)
 
-{- | Cartesian product of quivers.-}
+{- | [Cartesian monoidal product]
+(https://ncatlab.org/nlab/show/cartesian+monoidal+category)
+of quivers.-}
 data ProductQ p q x y = ProductQ
   { fstQ :: p x y
   , sndQ :: q x y
@@ -112,7 +116,9 @@ instance (Category p, Category q) => Category (ProductQ p q) where
 swapQ :: ProductQ p q x y -> ProductQ q p x y
 swapQ (ProductQ p q) = ProductQ q p
 
-{- | The quiver of quiver morphisms.-}
+{- | The quiver of quiver morphisms, `HomQ` is the [internal hom]
+(https://ncatlab.org/nlab/show/internal+hom)
+of the category of quivers.-}
 newtype HomQ p q x y = HomQ { getHomQ :: p x y -> q x y }
 
 {- | A term in @ReflQ r x y@ observes the equality @x ~ y@.
@@ -140,7 +146,9 @@ instance (Category p, p ~ q) => Category (ComposeQ p q) where
   id = ComposeQ id id
   ComposeQ pyz qxy . ComposeQ pwx qvw = ComposeQ (pyz . qxy) (pwx . qvw)
 
-{- | The left residual of `ComposeQ`.-}
+{- | The left [residual]
+(https://ncatlab.org/nlab/show/residual)
+of `ComposeQ`.-}
 newtype LeftQ p q x y = LeftQ
   {getLeftQ :: forall w. p w x -> q w y}
 instance (p ~ q, x ~ y) => Semigroup (LeftQ p q x y) where (<>) = (>>>)
@@ -149,7 +157,9 @@ instance p ~ q => Category (LeftQ p q) where
   id = LeftQ id
   LeftQ g . LeftQ f = LeftQ (g . f)
 
-{- | The right residual of `ComposeQ`.-}
+{- | The right [residual]
+(https://ncatlab.org/nlab/show/residual)
+of `ComposeQ`.-}
 newtype RightQ p q x y = RightQ
   {getRightQ :: forall z. p y z -> q x z}
 instance (p ~ q, x ~ y) => Semigroup (RightQ p q x y) where (<>) = (>>>)

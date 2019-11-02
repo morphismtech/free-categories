@@ -9,13 +9,13 @@ Consider the category of Haskell `Category`s, a subcategory
 of the category of quivers with,
 
 * constrained objects `Category` @c => c@
-* morphisms act functorially
+* morphisms are functors (which preserve objects)
   * @t :: (Category c, Category d) => c x y -> d x y@
   * @t id = id@
   * @t (g . f) = t g . t f@
 
-A functor from quivers to `Category`s
-has @(CFunctor c, forall p. Category (c p))@ with
+Thus, a functor from quivers to `Category`s
+has @(CFunctor c, forall p. Category (c p))@ with.
 
 prop> cmap f id = id
 prop> cmap f (q . p) = cmap f q . cmap f p
@@ -48,12 +48,12 @@ module Control.Category.Free
   ( Path (..)
   , pattern (:<<)
   , FoldPath (..)
-  , Category (..)
   , CFree (..)
   , toPath
   , creverse
   , beforeAll
   , afterAll
+  , Category (..)
   ) where
 
 import Data.Quiver
