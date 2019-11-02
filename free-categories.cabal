@@ -1,7 +1,7 @@
 cabal-version:       >=1.10
 
 name:                free-categories
-version:             0.1.0.0
+version:             0.2.0.0
 synopsis:            free categories
 description:         free categories, paths, and categorical folds
 homepage:            http://github.com/morphismtech/free-categories
@@ -16,6 +16,9 @@ extra-source-files:  CHANGELOG.md, README.md
 
 library
   exposed-modules:     Control.Category.Free
+                       Data.Quiver
+                       Data.Quiver.Bifunctor
+                       Data.Quiver.Functor
   build-depends:       base >=4.12 && <=5
   hs-source-dirs:      src
   default-language:    Haskell2010
