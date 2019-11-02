@@ -44,18 +44,18 @@ prop> cmap (g . f) = cmap g . cmap f
 class CFunctor c where
   cmap :: (forall x y. p x y -> q x y) -> c p x y -> c q x y
 instance CFunctor (ProductQ p) where cmap f (ProductQ p q) = ProductQ p (f q)
-instance CFunctor (Quiver p) where cmap g (Quiver f) = Quiver (g . f)
+instance CFunctor (HomQ p) where cmap g (HomQ f) = HomQ (g . f)
 instance Functor t => CFunctor (ApQ t) where cmap f (ApQ t) = ApQ (f <$> t)
 instance CFunctor OpQ where cmap f = OpQ . f . getOpQ
 instance CFunctor IsoQ where cmap f (IsoQ u d) = IsoQ (f u) (f d)
 instance CFunctor IQ where cmap f = IQ . f . getIQ
 instance CFunctor (ComposeQ p) where cmap f (ComposeQ p q) = ComposeQ p (f q)
-instance CFunctor (ExtendQ p) where cmap g (ExtendQ f) = ExtendQ (g . f)
-instance CFunctor (LiftQ p) where cmap g (LiftQ f) = LiftQ (g . f)
+instance CFunctor (LeftQ p) where cmap g (LeftQ f) = LeftQ (g . f)
+instance CFunctor (RightQ p) where cmap g (RightQ f) = RightQ (g . f)
 
 {- | Embed a single quiver arrow with `csingleton`.-}
 class CFunctor c => CPointed c where csingleton :: p x y -> c p x y
-instance CPointed (Quiver p) where csingleton q = Quiver (const q)
+instance CPointed (HomQ p) where csingleton q = HomQ (const q)
 instance Applicative t => CPointed (ApQ t) where csingleton = ApQ . pure
 instance CPointed IQ where csingleton = IQ
 instance Category p => CPointed (ComposeQ p) where csingleton = ComposeQ id
@@ -82,7 +82,7 @@ class CFunctor c => CFoldable c where
   prop> cfoldr (?) q (p1 :>> p2 :>> ... :>> pn :>> Done) == p1 ? (p2 ? ... (pn ? q) ...)
   -}
   cfoldr :: (forall x y z . p x y -> q y z -> q x z) -> q y z -> c p x y -> q x z
-  cfoldr (?) q c = getLiftQ (cfoldMap (\ x -> LiftQ (\ y -> x ? y)) c) q
+  cfoldr (?) q c = getRightQ (cfoldMap (\ x -> RightQ (\ y -> x ? y)) c) q
   {- | Left-associative fold of a structure.
 
   In the case of `Control.Category.Free.Path`s,
@@ -94,7 +94,7 @@ class CFunctor c => CFoldable c where
   prop> cfoldl (?) q (p1 :>> p2 :>> ... :>> pn :>> Done) == (... ((q ? p1) ? p2) ? ...) ? pn
   -}
   cfoldl :: (forall x y z . q x y -> p y z -> q x z) -> q x y -> c p y z -> q x z
-  cfoldl (?) q c = getExtendQ (cfoldMap (\ x -> ExtendQ (\ y -> y ? x)) c) q
+  cfoldl (?) q c = getLeftQ (cfoldMap (\ x -> LeftQ (\ y -> y ? x)) c) q
   {- | Map each element of the structure to a `Monoid`,
   and combine the results.-}
   ctoMonoid :: Monoid m => (forall x y. p x y -> m) -> c p x y -> m
@@ -141,8 +141,8 @@ class (CFunctor c, CPointed c) => CMonad c where
   cbind :: (forall x y. p x y -> c q x y) -> c p x y -> c q x y
   cbind f p = cjoin (cmap f p)
   {-# MINIMAL cjoin | cbind #-}
-instance CMonad (Quiver p) where
-  cjoin (Quiver q) = Quiver (\p -> getQuiver (q p) p)
+instance CMonad (HomQ p) where
+  cjoin (HomQ q) = HomQ (\p -> getHomQ (q p) p)
 instance Monad t => CMonad (ApQ t) where
   cbind f (ApQ t) = ApQ $ do
     p <- t

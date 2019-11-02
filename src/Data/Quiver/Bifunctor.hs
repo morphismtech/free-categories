@@ -58,9 +58,9 @@ class (forall q. CFunctor (hom q)) => CProfunctor hom where
     :: (forall x y. p' x y -> p x y)
     -> (forall x y. q x y -> q' x y)
     -> hom p q x y -> hom p' q' x y
-instance CProfunctor Quiver where cdimap f h (Quiver g) = Quiver (h . g . f)
-instance CProfunctor ExtendQ where cdimap f h (ExtendQ g) = ExtendQ (h . g . f)
-instance CProfunctor LiftQ where cdimap f h (LiftQ g) = LiftQ (h . g . f)
+instance CProfunctor HomQ where cdimap f h (HomQ g) = HomQ (h . g . f)
+instance CProfunctor LeftQ where cdimap f h (LeftQ g) = LeftQ (h . g . f)
+instance CProfunctor RightQ where cdimap f h (RightQ g) = RightQ (h . g . f)
 
 {-| A [monoidal category]
 (https://ncatlab.org/nlab/show/monoidal+category)
@@ -123,17 +123,17 @@ class (CBifunctor prod, CProfunctor lhom, CProfunctor rhom)
     cuncurry :: (forall x y. p x y -> lhom q r x y) -> prod p q x y -> r x y
     cflurry :: (forall x y. prod p q x y -> r x y) -> q x y -> rhom p r x y
     cunflurry :: (forall x y. q x y -> rhom p r x y) -> prod p q x y -> r x y
-instance CClosed ProductQ Quiver Quiver where
-  clev (ProductQ (Quiver pq) p) = pq p
-  crev (ProductQ p (Quiver pq)) = pq p
-  ccurry f p = Quiver (\q -> f (ProductQ p q))
-  cuncurry f (ProductQ p q) = getQuiver (f p) q
-  cflurry f q = Quiver (\p -> f (ProductQ p q))
-  cunflurry f (ProductQ p q) = getQuiver (f q) p
-instance CClosed ComposeQ ExtendQ LiftQ where
-  clev (ComposeQ (ExtendQ pq) p) = pq p
-  crev (ComposeQ p (LiftQ pq)) = pq p
-  ccurry f p = ExtendQ (\q -> f (ComposeQ p q))
-  cuncurry f (ComposeQ p q) = getExtendQ (f p) q
-  cflurry f q = LiftQ (\p -> f (ComposeQ p q))
-  cunflurry f (ComposeQ p q) = getLiftQ (f q) p
+instance CClosed ProductQ HomQ HomQ where
+  clev (ProductQ (HomQ pq) p) = pq p
+  crev (ProductQ p (HomQ pq)) = pq p
+  ccurry f p = HomQ (\q -> f (ProductQ p q))
+  cuncurry f (ProductQ p q) = getHomQ (f p) q
+  cflurry f q = HomQ (\p -> f (ProductQ p q))
+  cunflurry f (ProductQ p q) = getHomQ (f q) p
+instance CClosed ComposeQ LeftQ RightQ where
+  clev (ComposeQ (LeftQ pq) p) = pq p
+  crev (ComposeQ p (RightQ pq)) = pq p
+  ccurry f p = LeftQ (\q -> f (ComposeQ p q))
+  cuncurry f (ComposeQ p q) = getLeftQ (f p) q
+  cflurry f q = RightQ (\p -> f (ComposeQ p q))
+  cunflurry f (ComposeQ p q) = getRightQ (f q) p
