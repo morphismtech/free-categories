@@ -15,10 +15,10 @@ of the category of quivers with,
   * @t (g . f) = t g . t f@
 
 Thus, a functor from quivers to `Category`s
-has @(CFunctor c, forall p. Category (c p))@ with.
+has @(QFunctor c, forall p. Category (c p))@ with.
 
-prop> cmap f id = id
-prop> cmap f (q . p) = cmap f q . cmap f p
+prop> qmap f id = id
+prop> qmap f (q . p) = qmap f q . qmap f p
 
 The [free category functor](https://ncatlab.org/nlab/show/free+category)
 from quivers to `Category`s may be defined up to isomorphism as
@@ -50,7 +50,7 @@ module Control.Category.Free
   , FoldPath (..)
   , CFree (..)
   , toPath
-  , creverse
+  , reversePath
   , beforeAll
   , afterAll
   , Category (..)
@@ -70,7 +70,7 @@ let
   path :: Path (->) String Int
   path = length :>> (\x -> x^2) :>> Done
 in
-  cfold path "hello"
+  qfold path "hello"
 :}
 25
 -}
@@ -90,26 +90,26 @@ instance Category (Path p) where
   (.) path = \case
     Done -> path
     p :>> ps -> p :>> (ps >>> path)
-instance CFunctor Path where
-  cmap _ Done = Done
-  cmap f (p :>> ps) = f p :>> cmap f ps
-instance CFoldable Path where
-  cfoldMap _ Done = id
-  cfoldMap f (p :>> ps) = f p >>> cfoldMap f ps
-  ctoMonoid _ Done = mempty
-  ctoMonoid f (p :>> ps) = f p <> ctoMonoid f ps
-  ctoList _ Done = []
-  ctoList f (p :>> ps) = f p : ctoList f ps
-  ctraverse_ _ Done = pure id
-  ctraverse_ f (p :>> ps) = (>>>) <$> f p <*> ctraverse_ f ps
-instance CTraversable Path where
-  ctraverse _ Done = pure Done
-  ctraverse f (p :>> ps) = (:>>) <$> f p <*> ctraverse f ps
-instance CPointed Path where csingleton p = p :>> Done
-instance CMonad Path where cjoin = cfold
+instance QFunctor Path where
+  qmap _ Done = Done
+  qmap f (p :>> ps) = f p :>> qmap f ps
+instance QFoldable Path where
+  qfoldMap _ Done = id
+  qfoldMap f (p :>> ps) = f p >>> qfoldMap f ps
+  qtoMonoid _ Done = mempty
+  qtoMonoid f (p :>> ps) = f p <> qtoMonoid f ps
+  qtoList _ Done = []
+  qtoList f (p :>> ps) = f p : qtoList f ps
+  qtraverse_ _ Done = pure id
+  qtraverse_ f (p :>> ps) = (>>>) <$> f p <*> qtraverse_ f ps
+instance QTraversable Path where
+  qtraverse _ Done = pure Done
+  qtraverse f (p :>> ps) = (:>>) <$> f p <*> qtraverse f ps
+instance QPointed Path where qsingle p = p :>> Done
+instance QMonad Path where qjoin = qfold
 instance CFree Path
 
-{- | Encodes a path as its `cfoldMap` function.-}
+{- | Encodes a path as its `qfoldMap` function.-}
 newtype FoldPath p x y = FoldPath
   {getFoldPath :: forall q. Category q
     => (forall x y. p x y -> q x y) -> q x y}
@@ -118,12 +118,12 @@ instance x ~ y => Monoid (FoldPath p x y) where mempty = id
 instance Category (FoldPath p) where
   id = FoldPath $ \ _ -> id
   FoldPath g . FoldPath f = FoldPath $ \ k -> g k . f k
-instance CFunctor FoldPath where cmap f = cfoldMap (csingleton . f)
-instance CFoldable FoldPath where cfoldMap k (FoldPath f) = f k
-instance CTraversable FoldPath where
-  ctraverse f = getApQ . cfoldMap (ApQ . fmap csingleton . f)
-instance CPointed FoldPath where csingleton p = FoldPath $ \ k -> k p
-instance CMonad FoldPath where cjoin (FoldPath f) = f id
+instance QFunctor FoldPath where qmap f = qfoldMap (qsingle . f)
+instance QFoldable FoldPath where qfoldMap k (FoldPath f) = f k
+instance QTraversable FoldPath where
+  qtraverse f = getApQ . qfoldMap (ApQ . fmap qsingle . f)
+instance QPointed FoldPath where qsingle p = FoldPath $ \ k -> k p
+instance QMonad FoldPath where qjoin (FoldPath f) = f id
 instance CFree FoldPath
 
 {- | Unpacking the definition of a left adjoint to the forgetful functor
@@ -133,33 +133,33 @@ from `Category`s to quivers, any
 
 factors uniquely through the free `Category` @c@ as
 
-prop> cfoldMap f . csingleton = f
+prop> qfoldMap f . qsingle = f
 -}
 class
-  ( CPointed c
-  , CFoldable c
+  ( QPointed c
+  , QFoldable c
   , forall p. Category (c p)
   ) => CFree c where
 
-{- | `toPath` collapses any `CFoldable` into a `CFree`.
+{- | `toPath` collapses any `QFoldable` into a `CFree`.
 It is the unique isomorphism which exists
 between any two `CFree` functors.
 -}
-toPath :: (CFoldable c, CFree path) => c p x y -> path p x y
-toPath = cfoldMap csingleton
+toPath :: (QFoldable c, CFree path) => c p x y -> path p x y
+toPath = qfoldMap qsingle
 
 {- | Reverse all the arrows in a path. -}
-creverse :: (CFoldable c, CFree path) => c p x y -> path (OpQ p) y x
-creverse = getOpQ . cfoldMap (OpQ . csingleton . OpQ)
+reversePath :: (QFoldable c, CFree path) => c p x y -> path (OpQ p) y x
+reversePath = getOpQ . qfoldMap (OpQ . qsingle . OpQ)
 
 {- | Insert a given loop before each step. -}
 beforeAll
-  :: (CFoldable c, CFree path)
+  :: (QFoldable c, CFree path)
   => (forall x. p x x) -> c p x y -> path p x y
-beforeAll sep = cfoldMap (\p -> csingleton sep >>> csingleton p)
+beforeAll sep = qfoldMap (\p -> qsingle sep >>> qsingle p)
 
 {- | Insert a given loop before each step. -}
 afterAll
-  :: (CFoldable c, CFree path)
+  :: (QFoldable c, CFree path)
   => (forall x. p x x) -> c p x y -> path p x y
-afterAll sep = cfoldMap (\p -> csingleton p >>> csingleton sep)
+afterAll sep = qfoldMap (\p -> qsingle p >>> qsingle sep)

@@ -35,7 +35,7 @@ module Data.Quiver
   , ApQ (..)
   , KQ (..)
   , ProductQ (..)
-  , swapQ
+  , qswap
   , HomQ (..)
   , ReflQ (..)
   , ComposeQ (..)
@@ -113,8 +113,8 @@ instance (Category p, Category q) => Category (ProductQ p q) where
   ProductQ pyz qyz . ProductQ pxy qxy = ProductQ (pyz . pxy) (qyz . qxy)
 
 {- | Symmetry of `ProductQ`.-}
-swapQ :: ProductQ p q x y -> ProductQ q p x y
-swapQ (ProductQ p q) = ProductQ q p
+qswap :: ProductQ p q x y -> ProductQ q p x y
+qswap (ProductQ p q) = ProductQ q p
 
 {- | The quiver of quiver morphisms, `HomQ` is the [internal hom]
 (https://ncatlab.org/nlab/show/internal+hom)
