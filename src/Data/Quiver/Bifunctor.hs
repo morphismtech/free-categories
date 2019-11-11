@@ -122,8 +122,8 @@ prop> qflurry . qunflurry = id
 
 prop> qlev . (qcurry f `qbimap` id) = f
 prop> qcurry (qlev . (g `qbimap` id)) = g
-prop> qrev . (qflurry f `qbimap` id) = f
-prop> qflurry (qrev . (g `qbimap` id)) = g
+prop> qrev . (id `qbimap` qflurry f) = f
+prop> qflurry (qrev . (id `qbimap` g)) = g
 -}
 class (QBifunctor prod, QProfunctor lhom, QProfunctor rhom)
   => QClosed prod lhom rhom | prod -> lhom, prod -> rhom where
