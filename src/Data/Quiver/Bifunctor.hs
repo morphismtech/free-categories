@@ -67,9 +67,19 @@ instance QProfunctor RightQ where qdimap f h (RightQ g) = RightQ (h . g . f)
 structure on the category of quivers.
 
 This consists of a product bifunctor, a unit object and
-structure morphisms, an invertible associator
-and invertible left and right unitors that satisfy
-the pentagon equation,
+structure morphisms, an invertible associator,
+
+prop> qassoc . qdisassoc = id
+prop> qdisassoc . qassoc = id
+
+and invertible left and right unitors,
+
+prop> qintro1 . qelim1 = id
+prop> qelim1 . qintro1 = id
+prop> qintro2 . qelim2 = id
+prop> qelim2 . qintro2 = id
+
+that satisfy the pentagon equation,
 
 prop> qbimap id qassoc . qassoc . qbimap qassoc id = qassoc . qassoc
 
