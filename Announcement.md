@@ -141,15 +141,15 @@ a free category functor `c` you have a quiver morphism
 
 and a function of quiver morphisms to a `Category`,
 
-`w :: Category q => (forall x y. p x y -> q x y) -> c p x y -> q x y`
+`u :: Category q => (forall x y. p x y -> q x y) -> c p x y -> q x y`
 
 such that
 
-`w f . i = f`
+`u f . i = f`
 
 and that these functions characterize `c` up to isomorphism as a universal property.
 
-But, `w` and `i` have the same type signatures as `qfoldMap` and `qsingle`.
+But, `u` and `i` have the same type signatures as `qfoldMap` and `qsingle`.
 So, you can characterize the free category abstractly as a constraint.
 
 ```Haskell
