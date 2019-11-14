@@ -61,7 +61,7 @@ A couple of libraries also had it. A support library for reflection
 without remorse [type-aligned](https://github.com/atzeus/type-aligned)
 existed. Also the library
 [free-category](https://github.com/coot/free-category) which took
-those ideas a bit further.
+those ideas further.
 
 But I come from the land of category theory, and code wasn't really
 clarifying to me what this structure was and how it related to
@@ -133,22 +133,23 @@ class QFunctor c => QFoldable c where
   qfoldMap :: Category q => (forall x y. p x y -> q x y) -> c p x y -> q x y
 ```
 
-Now, the free category is left adjoint to forgetting
-the `Category` constraint. If you unpack the definition of left
-adjoint in this case you find that for a free category functor `c`
-you have a quiver morphism
+The free category is left adjoint to "forgetting" the `Category` constraint.
+If you unpack the definition of left adjoint in this case you find that for
+a free category functor `c` you have a quiver morphism
 
-`u :: p x y -> c p x y`
+`i :: p x y -> c p x y`
 
 and a function of quiver morphisms to a `Category`,
 
-`tilde :: Category q => (forall x y. p x y -> q x y) -> c p x y -> q x y`
+`w :: Category q => (forall x y. p x y -> q x y) -> c p x y -> q x y`
 
 such that
 
-`tilde f . u = f`
+`w f . i = f`
 
-But, `tilde` and `u` have the same type signatures as `qfoldMap` and `qsingle`.
+and that these functions characterize `c` up to isomorphism as a universal property.
+
+But, `w` and `i` have the same type signatures as `qfoldMap` and `qsingle`.
 So, you can characterize the free category abstractly as a constraint.
 
 ```Haskell
@@ -166,7 +167,7 @@ in a law abiding way are isomorphic.
 
 ## utility
 
-So, having broken my study of the free category into a library with
+So, I put my study of the free category into a library with
 some combinators, an API and data types, I found I could re-apply
 what I had learned back to Squeal migrations. It helped me clean up
 and generalize that code in a nice way. I hope to see some other
