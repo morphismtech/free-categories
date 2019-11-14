@@ -29,7 +29,8 @@ the `Definition`s smashes them together into a single `Definition`.
 I needed a data structure that held a list of migrations that can be
 but are not yet composed.
 
-```
+```Haskell
+{-# LANGUAGE GADTs #-}
 data Path p x y where
   Done :: Path p x x
   (:>>) :: p x y -> Path p y z -> Path p x z
