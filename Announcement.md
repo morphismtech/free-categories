@@ -26,7 +26,7 @@ together. But, a migration system needs to track which `Definition` has
 been run in the past and skip it. That means you need to be able
 to do some processing on each `Definition` in your chain. Composing
 the `Definition`s smashes them together into a single `Definition`.
-I needed a data structure that held a list of `Definition`s that can be
+I needed a data structure that held a list of migrations that can be
 but are not yet composed.
 
 ```
@@ -35,7 +35,9 @@ data Path p x y where
   (:>>) :: p x y -> Path p y z -> Path p x z
 ```
 
-This covered my need and also conveniently solved another problem.
+`Path p` is the "free category" or "path category" with steps in `p`.
+`Path p` has a `Category` instance even if `p` does not.
+`Path` covered my need and also conveniently solved another problem.
 Squeal also supported `WITH` statements, however, they had a problem.
 As I had typed them, I used a heterogeneous list to contain
 the common table expressions. This meant that each CTE had to reference
