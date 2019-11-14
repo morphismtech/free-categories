@@ -104,7 +104,7 @@ instances of `Category`, `Arrow`, `Bifunctor` and `Profunctor`.
 Haskell quivers aren't as general as the quivers from category
 theory land, but that's ok.
 
-## the category of quivers
+## the eightfold path
 
 Haskell quivers form a category with
 
@@ -124,24 +124,45 @@ And like Hask, the category of Haskell quivers has a useful hierarchy of
 endofunctor typeclasses, which may be used to provide a familiar
 API for the free category functor.
 
-Now, the free category is a functor from the category of quivers
-to the category of `Category`s which is left adjoint to forgetting
+```Haskell
+class QFunctor c where
+  qmap :: (forall x y. p x y -> q x y) -> c p x y -> c q x y
+class QFunctor c => QPointed c where
+  qsingle :: p x y -> c p x y
+class QFunctor c => QFoldable c where
+  qfoldMap :: Category q => (forall x y. p x y -> q x y) -> c p x y -> q x y
+```
+
+Now, the free category is left adjoint to forgetting
 the `Category` constraint. If you unpack the definition of left
-adjoint in this case you find that for the free category functor `path`
+adjoint in this case you find that for a free category functor `c`
 you have a quiver morphism
 
-`qsingle :: p x y -> path p x y`
+`u :: p x y -> c p x y`
 
 and a function of quiver morphisms to a `Category`,
 
-`qfoldMap :: Category q => (forall x y. p x y -> q x y) -> path p x y -> q x y`
+`tilde :: Category q => (forall x y. p x y -> q x y) -> c p x y -> q x y`
 
 such that
 
-`qfoldMap f . qsingle = f`
+`tilde f . u = f`
 
-So, you can characterize the free category abstractly using the
-endofunctor hierarchy.
+But, `tilde` and `u` have the same type signatures as `qfoldMap` and `qsingle`.
+So, you can characterize the free category abstractly as a constraint.
+
+```Haskell
+{-# LANGUAGE QuantifiedConstraints #-}
+class
+  ( QPointed c
+  , QFoldable c
+  , forall p. Category (c p)
+  ) => CFree c where
+```
+
+The free category constraint doesn't have any methods. It just has a law
+which GHC can't enforce. All data structures that implement those classes
+in a law abiding way are isomorphic.
 
 ## utility
 
