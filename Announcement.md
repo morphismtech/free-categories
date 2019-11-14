@@ -138,7 +138,7 @@ and a function of quiver morphisms to a `Category`,
 
 such that
 
-`qsingle . qfoldMap f = f`
+`qfoldMap f . qsingle = f`
 
 So, you can characterize the free category abstractly using the
 endofunctor hierarchy.
