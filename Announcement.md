@@ -13,8 +13,8 @@ class Category c where
 ```
 
 Instances include `(->)`, the category of Haskell types and functions,
-and `Kleisli`, the Kleisli category of a `Monad`. In [Squeal]
-(https://github.com/morphismtech/squeal/),
+and `Kleisli`, the Kleisli category of a `Monad`. In
+[Squeal](https://github.com/morphismtech/squeal/),
 there's another instance, `Definition`, the category of
 database schemas and DDL statements (`CREATE`, `DROP` and `ALTER`).
 
@@ -53,23 +53,20 @@ So I looked around for this datatype and I remembered a paper,
 written by Atze van der Ploeg and Oleg Kiselyov. They used `Path`s
 of `Kleisli` for efficient monadic reflection. They also introduce
 isomorphic datatypes to `Path`.
-The paper (Kleisli Arrows of Outrageous Fortune)
-[https://personal.cis.strath.ac.uk/conor.mcbride/Kleisli.pdf]
+The paper
+[Kleisli Arrows of Outrageous Fortune](https://personal.cis.strath.ac.uk/conor.mcbride/Kleisli.pdf)
 written by Conor McBride also uses `Path`, even naming it so.
 
 A couple of libraries also had it. A support library for reflection
 without remorse [type-aligned](https://github.com/atzeus/type-aligned)
 existed. Also the library
 [free-category](https://github.com/coot/free-category) which took
-those ideas a bit further.
+those ideas further.
 
 But I come from the land of category theory, and code wasn't really
 clarifying to me what this structure was and how it related to
 other similar datatypes. It turned out that in mathematics, the
 free category was related to something I had studied in my earlier days.
-My advisor wrote a [book]
-(https://www.amazon.com/Representations-Varieties-Graduate-Studies-Mathematics/dp/1470423073)
-about them!
 
 ## quivers
 
@@ -89,7 +86,11 @@ there may be multiple arrows between vertices.
 
 In math, quivers are usually studied in the context of representation
 theory and algebraic geometry so I was a bit shocked to see them
-in programming in a very different context.
+in programming in a very different context. I had seen them
+when I was studying quantum algebra under my advisor Alexander Kirillov Jr.
+He even wrote a
+[book](https://www.amazon.com/Representations-Varieties-Graduate-Studies-Mathematics/dp/1470423073)
+about quivers!
 
 A Haskell quiver is a higher kinded type,
 
@@ -103,7 +104,7 @@ instances of `Category`, `Arrow`, `Bifunctor` and `Profunctor`.
 Haskell quivers aren't as general as the quivers from category
 theory land, but that's ok.
 
-## the category of quivers
+## the eightfold path
 
 Haskell quivers form a category with
 
@@ -123,28 +124,50 @@ And like Hask, the category of Haskell quivers has a useful hierarchy of
 endofunctor typeclasses, which may be used to provide a familiar
 API for the free category functor.
 
-Now, the free category has to a functor the category of quivers
-to the category of `Category`s which is left adjoint to forgetting
-the `Category` constraint. If you unpack the definition of left
-adjoint in this case you find that for the free category functor `path`
-you have a quiver morphism
+```Haskell
+class QFunctor c where
+  qmap :: (forall x y. p x y -> q x y) -> c p x y -> c q x y
+class QFunctor c => QPointed c where
+  qsingle :: p x y -> c p x y
+class QFunctor c => QFoldable c where
+  qfoldMap :: Category q => (forall x y. p x y -> q x y) -> c p x y -> q x y
+```
 
-`qsingle :: p x y -> path p x y`
+The free category is left adjoint to "forgetting" the `Category` constraint.
+If you unpack the definition of left adjoint in this case you find that for
+a free category functor `c` you have a quiver morphism
+
+`i :: p x y -> c p x y`
 
 and a function of quiver morphisms to a `Category`,
 
-`qfoldMap :: Category q => (forall x y. p x y -> q x y) -> path p x y -> q x y`
+`u :: Category q => (forall x y. p x y -> q x y) -> c p x y -> q x y`
 
 such that
 
-`qsingle . qfoldMap f = f`
+`u f . i = f`
 
-So, you can characterize the free category abstractly using the
-endofunctor hierarchy.
+and that these functions characterize `c` up to isomorphism as a universal property.
+
+But, `u` and `i` have the same type signatures as `qfoldMap` and `qsingle`.
+So, you can characterize the free category abstractly as a constraint.
+
+```Haskell
+{-# LANGUAGE QuantifiedConstraints #-}
+class
+  ( QPointed c
+  , QFoldable c
+  , forall p. Category (c p)
+  ) => CFree c where
+```
+
+The free category constraint doesn't have any methods. It just has a law
+which GHC can't enforce. All data structures that implement those classes
+in a law abiding way are isomorphic.
 
 ## utility
 
-So, having broken my study of the free category into a library with
+So, I put my study of the free category into a library with
 some combinators, an API and data types, I found I could re-apply
 what I had learned back to Squeal migrations. It helped me clean up
 and generalize that code in a nice way. I hope to see some other
