@@ -53,8 +53,8 @@ So I looked around for this datatype and I remembered a paper,
 written by Atze van der Ploeg and Oleg Kiselyov. They used `Path`s
 of `Kleisli` for efficient monadic reflection. They also introduce
 isomorphic datatypes to `Path`.
-The paper (Kleisli Arrows of Outrageous Fortune)
-[https://personal.cis.strath.ac.uk/conor.mcbride/Kleisli.pdf]
+The paper
+[Kleisli Arrows of Outrageous Fortune](https://personal.cis.strath.ac.uk/conor.mcbride/Kleisli.pdf)
 written by Conor McBride also uses `Path`, even naming it so.
 
 A couple of libraries also had it. A support library for reflection
@@ -67,9 +67,6 @@ But I come from the land of category theory, and code wasn't really
 clarifying to me what this structure was and how it related to
 other similar datatypes. It turned out that in mathematics, the
 free category was related to something I had studied in my earlier days.
-My advisor wrote a [book]
-(https://www.amazon.com/Representations-Varieties-Graduate-Studies-Mathematics/dp/1470423073)
-about them!
 
 ## quivers
 
@@ -89,7 +86,11 @@ there may be multiple arrows between vertices.
 
 In math, quivers are usually studied in the context of representation
 theory and algebraic geometry so I was a bit shocked to see them
-in programming in a very different context.
+in programming in a very different context. I had seen them
+when I was studying quantum algebra under my advisor Alexander Kirillov Jr.
+He even wrote a
+[book](https://www.amazon.com/Representations-Varieties-Graduate-Studies-Mathematics/dp/1470423073)
+about quivers!
 
 A Haskell quiver is a higher kinded type,
 
@@ -123,7 +124,7 @@ And like Hask, the category of Haskell quivers has a useful hierarchy of
 endofunctor typeclasses, which may be used to provide a familiar
 API for the free category functor.
 
-Now, the free category has to a functor the category of quivers
+Now, the free category is a functor from the category of quivers
 to the category of `Category`s which is left adjoint to forgetting
 the `Category` constraint. If you unpack the definition of left
 adjoint in this case you find that for the free category functor `path`
