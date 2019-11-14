@@ -101,8 +101,8 @@ instance Monoid m => Category (KQ m) where
 (https://ncatlab.org/nlab/show/cartesian+monoidal+category)
 of quivers.-}
 data ProductQ p q x y = ProductQ
-  { fstQ :: p x y
-  , sndQ :: q x y
+  { qfst :: p x y
+  , qsnd :: q x y
   } deriving (Eq, Ord, Show)
 instance (Category p, Category q, x ~ y)
   => Semigroup (ProductQ p q x y) where (<>) = (>>>)
