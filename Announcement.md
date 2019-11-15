@@ -13,7 +13,7 @@ class Category c where
 ```
 
 Instances include `(->)`, the category of Haskell types and functions,
-and `Kleisli`, the Kleisli category of a `Monad`. In
+and `Kleisli m`, the Kleisli category of a `Monad`. In
 [Squeal](https://github.com/morphismtech/squeal/),
 there's another instance, `Definition`, the category of
 database schemas and DDL statements (`CREATE`, `DROP` and `ALTER`).
