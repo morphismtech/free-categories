@@ -118,7 +118,7 @@ Haskell quivers form a category with
 * identity is `id`
 * composition is `.`
 
-`Prelude`s `id` and `.` work for quiver morphisms,
+`Prelude`'s `id` and `.` work for quiver morphisms,
 thanks to universal quantification. This category turns out
 pretty interesting, and in many ways is analagous to Hask, the
 category of Haskell `Type`s and functions. It has two interesting
