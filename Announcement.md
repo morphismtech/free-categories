@@ -22,8 +22,8 @@ For a while I was puzzling on how to add migration support to Squeal.
 Support for DDL gets you a long way, but not the whole way.
 As a first pass, you can say your migration system is just `Definition`s
 with the `Category` instance allowing you to chain your migrations
-together. But, a migration system needs to track which `Definition` has
-been run in the past and skip it. That means you need to be able
+together. But, a migration system needs to track which migrations have
+been run in the past and safely skip them. That means you need to be able
 to do some processing on each migration in your chain. Composing
 the `Definition`s smashes them together into a single `Definition`.
 I needed a data structure that held a list of migrations that can be
