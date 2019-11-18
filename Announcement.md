@@ -62,8 +62,8 @@ written by Conor McBride also uses `Path`, even naming it so.
 
 A couple of libraries also had it. A support library for reflection
 without remorse [type-aligned](https://github.com/atzeus/type-aligned)
-existed. Also the library
-[free-category](https://github.com/coot/free-category) which took
+existed. Also the remarkably fascinating and general library
+[free-category](https://github.com/coot/free-category) took
 those ideas further.
 
 But I come from the land of category theory, and code wasn't really
