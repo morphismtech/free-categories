@@ -136,8 +136,6 @@ instance Monoid m => Category (ReflQ m) where
 
 {- | Compose quivers along matching source and target.-}
 data ComposeQ p q x z = forall y. ComposeQ (p y z) (q x y)
-deriving instance (forall x y. (Show (p x y), Show (q x y)))
-  => Show (ComposeQ p q x y)
 instance (Category p, p ~ q, x ~ y)
   => Semigroup (ComposeQ p q x y) where (<>) = (>>>)
 instance (Category p, p ~ q, x ~ y)
