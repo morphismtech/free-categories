@@ -136,7 +136,7 @@ instance Monoid m => Category (ReflQ m) where
 
 {- | Compose quivers along matching source and target.-}
 data ComposeQ p q x z = forall y. ComposeQ (p y z) (q x y)
-deriving instance (forall x y. (Show (p x y), Show (q x y)))
+deriving instance (forall x y. Show (p x y), forall x y. Show (q x y))
   => Show (ComposeQ p q x y)
 instance (Category p, p ~ q, x ~ y)
   => Semigroup (ComposeQ p q x y) where (<>) = (>>>)
@@ -144,7 +144,7 @@ instance (Category p, p ~ q, x ~ y)
   => Monoid (ComposeQ p q x y) where mempty = id
 instance (Category p, p ~ q) => Category (ComposeQ p q) where
   id = ComposeQ id id
-  ComposeQ pyz qxy . ComposeQ pwx qvw = ComposeQ (pyz . qxy) (pwx . qvw)
+  ComposeQ yz xy . ComposeQ wx vw = ComposeQ (yz . xy) (wx . vw)
 
 {- | The left [residual]
 (https://ncatlab.org/nlab/show/residual)
