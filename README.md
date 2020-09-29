@@ -1,3 +1,3 @@
 The free category on a quiver.
 
-![quiver](quiver.gif)
+![quiver](https://github.com/morphismtech/free-categories/blob/master/quiver.gif)
