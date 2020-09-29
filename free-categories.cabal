@@ -1,7 +1,7 @@
 cabal-version:       >=1.10
 
 name:                free-categories
-version:             0.2.0.1
+version:             0.2.0.2
 synopsis:            free categories
 description:         free categories, paths, and categorical folds
 homepage:            http://github.com/morphismtech/free-categories
