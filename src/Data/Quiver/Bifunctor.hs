@@ -35,12 +35,18 @@ covariant in both its arguments.
 
 prop> qbimap id id = id
 prop> qbimap (g . f) (i . h) = qbimap g i . qbimap f h
+prop> qbimap id f = qmap f
+prop> qbimap f id = qlmap f
 -}
 class (forall q. QFunctor (prod q)) => QBifunctor prod where
   qbimap
     :: (forall x y. p x y -> p' x y)
     -> (forall x y. q x y -> q' x y)
     -> prod p q x y -> prod p' q' x y
+  qlmap
+    :: (forall x y. p x y -> p' x y)
+    -> prod p q x y -> prod p' q x y
+  qlmap f = qbimap f id
 instance QBifunctor ProductQ where
   qbimap f g (ProductQ p q) = ProductQ (f p) (g q)
 instance QBifunctor ComposeQ where
@@ -52,12 +58,18 @@ and covariant in its second argument.
 
 prop> qdimap id id = id
 prop> qdimap (g . f) (i . h) = qdimap f i . qdimap g h
+prop> qdimap id f = qmap f
+prop> qdimap f id = qpremap f
 -}
 class (forall q. QFunctor (hom q)) => QProfunctor hom where
   qdimap
     :: (forall x y. p' x y -> p x y)
     -> (forall x y. q x y -> q' x y)
     -> hom p q x y -> hom p' q' x y
+  qpremap
+    :: (forall x y. p' x y -> p x y)
+    -> hom p q x y -> hom p' q x y
+  qpremap f = qdimap f id
 instance QProfunctor HomQ where qdimap f h (HomQ g) = HomQ (h . g . f)
 instance QProfunctor LeftQ where qdimap f h (LeftQ g) = LeftQ (h . g . f)
 instance QProfunctor RightQ where qdimap f h (RightQ g) = RightQ (h . g . f)
@@ -81,11 +93,11 @@ prop> qelim2 . qintro2 = id
 
 that satisfy the pentagon equation,
 
-prop> qbimap id qassoc . qassoc . qbimap qassoc id = qassoc . qassoc
+prop> qmap qassoc . qassoc . qlmap qassoc = qassoc . qassoc
 
 and the triangle equation,
 
-prop> qbimap id qelim1 . qassoc = qbimap qelim2 id
+prop> qmap qelim1 . qassoc = qlmap qelim2
 -}
 class QBifunctor prod => QMonoidal prod unit | prod -> unit where
   qintro1 :: p x y -> prod unit p x y
@@ -120,10 +132,10 @@ coincide as the internal hom.
 prop> qcurry  . quncurry = id
 prop> qflurry . qunflurry = id
 
-prop> qlev . (qcurry f `qbimap` id) = f
-prop> qcurry (qlev . (g `qbimap` id)) = g
-prop> qrev . (id `qbimap` qflurry f) = f
-prop> qflurry (qrev . (id `qbimap` g)) = g
+prop> qlev . qlmap (qcurry f) = f
+prop> qcurry (qlev . qlmap g) = g
+prop> qrev . qmap (qflurry f) = f
+prop> qflurry (qrev . qmap g) = g
 -}
 class (QBifunctor prod, QProfunctor lhom, QProfunctor rhom)
   => QClosed prod lhom rhom | prod -> lhom, prod -> rhom where
