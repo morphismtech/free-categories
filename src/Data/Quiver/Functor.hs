@@ -30,9 +30,11 @@ module Data.Quiver.Functor
   , QFoldable (..)
   , QTraversable (..)
   , QMonad (..)
+  , qfoldMapDefault
   ) where
 
 import Control.Category
+import Control.Atkey
 import Data.Quiver
 import Prelude hiding (id, (.))
 
@@ -64,7 +66,7 @@ instance Category p => QPointed (ComposeQ p) where qsingle = ComposeQ id
 
 prop> qmap f = qfoldMap (qsingle . f)
 -}
-class QFunctor c => QFoldable c where
+class QFoldable c where
   {- | Map each element of the structure to a `Category`,
   and combine the results.-}
   qfoldMap :: Category q => (forall x y. p x y -> q x y) -> c p x y -> q x y
@@ -105,22 +107,29 @@ class QFunctor c => QFoldable c where
   {- | Map each element of a structure to an `Applicative` on a `Category`,
   evaluate from left to right, and combine the results.-}
   qtraverse_
-    :: (Applicative m, Category q)
-    => (forall x y. p x y -> m (q x y)) -> c p x y -> m (q x y)
-  qtraverse_ f = getApQ . qfoldMap (ApQ . f)
+    :: (IxApplicative m, Category q)
+    => (forall x y. p x y -> m x y (q x y)) -> c p x y -> m x y (q x y)
+  qtraverse_ f = getIxApQ . qfoldMap (IxApQ . f)
 instance QFoldable (ProductQ p) where qfoldMap f (ProductQ _ q) = f q
 instance QFoldable IQ where qfoldMap f (IQ c) = f c
 
+qfoldMapDefault
+  :: (QTraversable t, Category d)
+  => (forall x y . c x y -> d x y) -> t c p q -> d p q
+qfoldMapDefault f = getIxConst . qtraverse (IxConst . f)
+
 {- | Generalizing `Traversable` to quivers.-}
-class QFoldable c => QTraversable c where
-  {- | Map each element of a structure to an `Applicative` on a quiver,
+class (QFunctor t, QFoldable t) => QTraversable t where
+  {- | Map each element of a structure to an `IxApplicative` on a quiver,
   evaluate from left to right, and collect the results.-}
   qtraverse
-    :: Applicative m
-    => (forall x y. p x y -> m (q x y)) -> c p x y -> m (c q x y)
+    :: IxApplicative m
+    => (forall x y. c x y -> m x y (d x y))
+    -> t c p q -> m p q (t d p q)
+
 instance QTraversable (ProductQ p) where
-  qtraverse f (ProductQ p q) = ProductQ p <$> f q
-instance QTraversable IQ where qtraverse f (IQ c) = IQ <$> f c
+  qtraverse f (ProductQ p q) = ProductQ p `imap` f q
+instance QTraversable IQ where qtraverse f (IQ c) = IQ `imap` f c
 
 {- | Generalize `Monad` to quivers.
 
