@@ -50,6 +50,7 @@ class QFunctor c where
 instance QFunctor (ProductQ p) where qmap f (ProductQ p q) = ProductQ p (f q)
 instance QFunctor (HomQ p) where qmap g (HomQ f) = HomQ (g . f)
 instance Functor t => QFunctor (ApQ t) where
+  -- There must be a clearer way to write this directly using coerce.
   qmap = ((ApQ .) . (. getApQ)) #. fmap
 instance QFunctor OpQ where qmap f = OpQ #. f .# getOpQ
 instance QFunctor IsoQ where qmap f (IsoQ u d) = IsoQ (f u) (f d)
