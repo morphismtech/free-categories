@@ -22,6 +22,7 @@ analagous to that for Haskell types.
 {-# LANGUAGE
     PolyKinds
   , RankNTypes
+  , ScopedTypeVariables
 #-}
 
 module Data.Quiver.Functor
@@ -30,10 +31,13 @@ module Data.Quiver.Functor
   , QFoldable (..)
   , QTraversable (..)
   , QMonad (..)
+  , qfoldMapDefault
   ) where
 
 import Control.Category
+import Control.Atkey
 import Data.Quiver
+import Data.Quiver.Internal
 import Prelude hiding (id, (.))
 
 {- | An endfunctor of quivers.
@@ -45,10 +49,12 @@ class QFunctor c where
   qmap :: (forall x y. p x y -> q x y) -> c p x y -> c q x y
 instance QFunctor (ProductQ p) where qmap f (ProductQ p q) = ProductQ p (f q)
 instance QFunctor (HomQ p) where qmap g (HomQ f) = HomQ (g . f)
-instance Functor t => QFunctor (ApQ t) where qmap f (ApQ t) = ApQ (f <$> t)
-instance QFunctor OpQ where qmap f = OpQ . f . getOpQ
+instance Functor t => QFunctor (ApQ t) where
+  -- There must be a clearer way to write this directly using coerce.
+  qmap = ((ApQ .) . (. getApQ)) #. fmap
+instance QFunctor OpQ where qmap f = OpQ #. f .# getOpQ
 instance QFunctor IsoQ where qmap f (IsoQ u d) = IsoQ (f u) (f d)
-instance QFunctor IQ where qmap f = IQ . f . getIQ
+instance QFunctor IQ where qmap f = IQ #. f .# getIQ
 instance QFunctor (ComposeQ p) where qmap f (ComposeQ p q) = ComposeQ p (f q)
 instance QFunctor (LeftQ p) where qmap g (LeftQ f) = LeftQ (g . f)
 instance QFunctor (RightQ p) where qmap g (RightQ f) = RightQ (g . f)
@@ -56,7 +62,7 @@ instance QFunctor (RightQ p) where qmap g (RightQ f) = RightQ (g . f)
 {- | Embed a single quiver arrow with `qsingle`.-}
 class QFunctor c => QPointed c where qsingle :: p x y -> c p x y
 instance QPointed (HomQ p) where qsingle q = HomQ (const q)
-instance Applicative t => QPointed (ApQ t) where qsingle = ApQ . pure
+instance Applicative t => QPointed (ApQ t) where qsingle = ApQ #. pure
 instance QPointed IQ where qsingle = IQ
 instance Category p => QPointed (ComposeQ p) where qsingle = ComposeQ id
 
@@ -64,7 +70,7 @@ instance Category p => QPointed (ComposeQ p) where qsingle = ComposeQ id
 
 prop> qmap f = qfoldMap (qsingle . f)
 -}
-class QFunctor c => QFoldable c where
+class QFoldable c where
   {- | Map each element of the structure to a `Category`,
   and combine the results.-}
   qfoldMap :: Category q => (forall x y. p x y -> q x y) -> c p x y -> q x y
@@ -98,29 +104,52 @@ class QFunctor c => QFoldable c where
   {- | Map each element of the structure to a `Monoid`,
   and combine the results.-}
   qtoMonoid :: Monoid m => (forall x y. p x y -> m) -> c p x y -> m
-  qtoMonoid f = getKQ . qfoldMap (KQ . f)
+  qtoMonoid f = getKQ #. qfoldMap (KQ #. f)
   {- | Map each element of the structure, and combine the results in a list.-}
   qtoList :: (forall x y. p x y -> a) -> c p x y -> [a]
   qtoList f = qtoMonoid (pure . f)
   {- | Map each element of a structure to an `Applicative` on a `Category`,
   evaluate from left to right, and combine the results.-}
   qtraverse_
-    :: (Applicative m, Category q)
-    => (forall x y. p x y -> m (q x y)) -> c p x y -> m (q x y)
-  qtraverse_ f = getApQ . qfoldMap (ApQ . f)
+    :: (IxApplicative m, Category q)
+    => (forall x y. p x y -> m x y (q x y)) -> c p x y -> m x y (q x y)
+  qtraverse_ f = getIxApQ #. qfoldMap (IxApQ #. f)
 instance QFoldable (ProductQ p) where qfoldMap f (ProductQ _ q) = f q
-instance QFoldable IQ where qfoldMap f (IQ c) = f c
+instance QFoldable IQ where qfoldMap f = f .# getIQ
+
+qfoldMapDefault
+  :: (QTraversable t, Category d)
+  => (forall x y . c x y -> d x y) -> t c p q -> d p q
+qfoldMapDefault f = getIxConst #. qtraverse (IxConst #. f)
 
 {- | Generalizing `Traversable` to quivers.-}
-class QFoldable c => QTraversable c where
-  {- | Map each element of a structure to an `Applicative` on a quiver,
+class (QFunctor t, QFoldable t) => QTraversable t where
+  {- | Map each element of a structure to an `IxApplicative` on a quiver,
   evaluate from left to right, and collect the results.-}
   qtraverse
-    :: Applicative m
-    => (forall x y. p x y -> m (q x y)) -> c p x y -> m (c q x y)
+    :: IxApplicative m
+    => (forall x y. c x y -> m x y (d x y))
+    -> t c p q -> m p q (t d p q)
+
 instance QTraversable (ProductQ p) where
-  qtraverse f (ProductQ p q) = ProductQ p <$> f q
-instance QTraversable IQ where qtraverse f (IQ c) = IQ <$> f c
+  qtraverse f (ProductQ p q) = ProductQ p `imap` f q
+instance QTraversable IQ where qtraverse f (IQ c) = IQ `imap` f c
+
+newtype QReverse t c x y = QReverse {getQReverse :: t (OpQ c) y x}
+instance QFunctor t => QFunctor (QReverse t) where
+  qmap f = QReverse #. qmap (OpQ #. f .# getOpQ) .# getQReverse
+instance QFoldable t => QFoldable (QReverse t) where
+  qfoldMap f (QReverse xs) = getOpQ $ qfoldMap (OpQ #. f .# getOpQ) xs
+  qfold (QReverse xs) = getOpQ $ qfold xs
+  qfoldr c n (QReverse xs) = getOpQ $ qfoldl (\(OpQ acc) (OpQ x) -> OpQ (c x acc)) (OpQ n) xs
+  qfoldl f b (QReverse xs) = getOpQ $ qfoldr (\(OpQ x) (OpQ acc) -> OpQ (f acc x)) (OpQ b) xs
+
+-- This instance was worked out by Joachim Breitner.
+instance QTraversable t => QTraversable (QReverse t) where
+  qtraverse f =
+    imap QReverse . ixforwards .
+    qtraverse (IxBackwards . imap OpQ . f . getOpQ) .
+    getQReverse
 
 {- | Generalize `Monad` to quivers.
 

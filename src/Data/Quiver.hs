@@ -26,6 +26,7 @@ Many Haskell typeclasses are constraints on quivers, such as
   , QuantifiedConstraints
   , RankNTypes
   , StandaloneDeriving
+  , UndecidableInstances
 #-}
 
 module Data.Quiver
@@ -33,6 +34,7 @@ module Data.Quiver
   , OpQ (..)
   , IsoQ (..)
   , ApQ (..)
+  , IxApQ (..)
   , KQ (..)
   , ProductQ (..)
   , qswap
@@ -44,6 +46,7 @@ module Data.Quiver
   ) where
 
 import Control.Category
+import Control.Atkey
 import Control.Monad (join)
 import Prelude hiding (id, (.))
 
@@ -83,6 +86,18 @@ instance (Applicative m, Category c, x ~ y)
 instance (Applicative m, Category c) => Category (ApQ m c) where
   id = ApQ (pure id)
   ApQ g . ApQ f = ApQ ((.) <$> g <*> f)
+
+newtype IxApQ m c x y = IxApQ {getIxApQ :: m x y (c x y)}
+deriving instance Eq (m x y (c x y)) => Eq (IxApQ m c x y)
+deriving instance Ord (m x y (c x y)) => Ord (IxApQ m c x y)
+deriving instance Show (m x y (c x y)) => Show (IxApQ m c x y)
+instance (IxApplicative m, Category c, x ~ y)
+  => Semigroup (IxApQ m c x y) where (<>) = (>>>)
+instance (IxApplicative m, Category c, x ~ y)
+  => Monoid (IxApQ m c x y) where mempty = id
+instance (IxApplicative m, Category c) => Category (IxApQ m c) where
+  id = IxApQ (ipure id)
+  IxApQ g . IxApQ f = IxApQ (iliftA2 (flip (.)) f g)
 
 {- | The constant quiver.
 
