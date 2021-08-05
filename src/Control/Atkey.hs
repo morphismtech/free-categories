@@ -13,6 +13,7 @@ module Control.Atkey
   , IxApplicative (..)
   , IxConst (..)
   , WrappedApplicative (..)
+  , IxBackwards (..)
   ) where
 
 import Control.Category
@@ -59,3 +60,12 @@ instance Category d => IxApply (IxConst d) where
   iap (IxConst x) (IxConst y) = IxConst (y . x)
 instance Category d => IxApplicative (IxConst d) where
   ipure _ = IxConst id
+
+newtype IxBackwards f y x a = IxBackwards { ixforwards :: f x y a }
+  deriving (Eq, Ord, Show)
+instance IxFunctor f => IxFunctor (IxBackwards f) where
+  imap = ((IxBackwards .) . (. ixforwards)) #. imap
+instance IxApply f => IxApply (IxBackwards f) where
+  iliftA2 f (IxBackwards x) (IxBackwards y) = IxBackwards $ iliftA2 (flip f) y x
+instance IxApplicative f => IxApplicative (IxBackwards f) where
+  ipure = IxBackwards #. ipure

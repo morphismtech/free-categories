@@ -135,6 +135,22 @@ instance QTraversable (ProductQ p) where
   qtraverse f (ProductQ p q) = ProductQ p `imap` f q
 instance QTraversable IQ where qtraverse f (IQ c) = IQ `imap` f c
 
+newtype QReverse t c x y = QReverse {getQReverse :: t (OpQ c) y x}
+instance QFunctor t => QFunctor (QReverse t) where
+  qmap f = QReverse #. qmap (OpQ #. f .# getOpQ) .# getQReverse
+instance QFoldable t => QFoldable (QReverse t) where
+  qfoldMap f (QReverse xs) = getOpQ $ qfoldMap (OpQ #. f .# getOpQ) xs
+  qfold (QReverse xs) = getOpQ $ qfold xs
+  qfoldr c n (QReverse xs) = getOpQ $ qfoldl (\(OpQ acc) (OpQ x) -> OpQ (c x acc)) (OpQ n) xs
+  qfoldl f b (QReverse xs) = getOpQ $ qfoldr (\(OpQ x) (OpQ acc) -> OpQ (f acc x)) (OpQ b) xs
+
+-- This instance was worked out by Joachim Breitner.
+instance QTraversable t => QTraversable (QReverse t) where
+  qtraverse f =
+    imap QReverse . ixforwards .
+    qtraverse (IxBackwards . imap OpQ . f . getOpQ) .
+    getQReverse
+
 {- | Generalize `Monad` to quivers.
 
 Associativity and left and right identity laws hold.
