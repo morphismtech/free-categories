@@ -112,7 +112,7 @@ instance QFoldable (ProductQ p) where qfoldMap f (ProductQ _ q) = f q
 instance QFoldable IQ where qfoldMap f (IQ c) = f c
 
 {- | Generalizing `Traversable` to quivers.-}
-class QFoldable c => QTraversable c where
+class QTraversable c where
   {- | Map each element of a structure to an `Applicative` on a quiver,
   evaluate from left to right, and collect the results.-}
   qtraverse
