@@ -59,6 +59,7 @@ module Control.Category.Free
 import Data.Quiver
 import Data.Quiver.Functor
 import Control.Category
+import Control.Atkey
 import Control.Monad (join)
 import Prelude hiding (id, (.))
 
@@ -100,11 +101,11 @@ instance QFoldable Path where
   qtoMonoid f (p :>> ps) = f p <> qtoMonoid f ps
   qtoList _ Done = []
   qtoList f (p :>> ps) = f p : qtoList f ps
-  qtraverse_ _ Done = pure id
-  qtraverse_ f (p :>> ps) = (>>>) <$> f p <*> qtraverse_ f ps
+  qtraverse_ _ Done = ipure id
+  qtraverse_ f (p :>> ps) = iliftA2 (>>>) (f p) (qtraverse_ f ps)
 instance QTraversable Path where
-  qtraverse _ Done = pure Done
-  qtraverse f (p :>> ps) = (:>>) <$> f p <*> qtraverse f ps
+  qtraverse _ Done = ipure Done
+  qtraverse f (p :>> ps) = iliftA2 (:>>) (f p) (qtraverse f ps)
 instance QPointed Path where qsingle p = p :>> Done
 instance QMonad Path where qjoin = qfold
 instance CFree Path
@@ -121,7 +122,7 @@ instance Category (FoldPath p) where
 instance QFunctor FoldPath where qmap f = qfoldMap (qsingle . f)
 instance QFoldable FoldPath where qfoldMap k (FoldPath f) = f k
 instance QTraversable FoldPath where
-  qtraverse f = getApQ . qfoldMap (ApQ . fmap qsingle . f)
+  qtraverse f = getIxApQ . qfoldMap (IxApQ . imap qsingle . f)
 instance QPointed FoldPath where qsingle p = FoldPath $ \ k -> k p
 instance QMonad FoldPath where qjoin (FoldPath f) = f id
 instance CFree FoldPath
