@@ -128,9 +128,10 @@ instance QMonoidal Procompose (ReflQ ()) where
 (https://ncatlab.org/nlab/show/closed+monoidal+category)
 is one for which the products
 @prod _ p@ and @prod p _@ both have right adjoint functors,
-the left and right residuals @lhom p@ and @rhom p@.
-If @prod@ is symmetric then the left and right residuals
-coincide as the internal hom.
+the left and right [residuals](https://ncatlab.org/nlab/show/residual)
+@lhom p@ and @rhom p@. If @prod@ is symmetric then the
+left and right residuals coincide as the
+[internal hom](https://ncatlab.org/nlab/show/internal+hom).
 
 prop> qcurry  . quncurry = id
 prop> qflurry . qunflurry = id
