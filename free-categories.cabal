@@ -20,5 +20,7 @@ library
                        Data.Quiver.Bifunctor
                        Data.Quiver.Functor
   build-depends:       base >=4.12 && <=5
+                       , bifunctors
+                       , profunctors
   hs-source-dirs:      src
   default-language:    Haskell2010
