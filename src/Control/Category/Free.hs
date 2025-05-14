@@ -42,6 +42,7 @@ from quivers to `Category`s may be defined up to isomorphism as
   , QuantifiedConstraints
   , RankNTypes
   , StandaloneDeriving
+  , TypeOperators
 #-}
 
 module Control.Category.Free
@@ -56,6 +57,7 @@ module Control.Category.Free
   , Category (..)
   ) where
 
+import Data.Profunctor.Cayley
 import Data.Quiver
 import Data.Quiver.Functor
 import Control.Category
@@ -121,7 +123,7 @@ instance Category (FoldPath p) where
 instance QFunctor FoldPath where qmap f = qfoldMap (qsingle . f)
 instance QFoldable FoldPath where qfoldMap k (FoldPath f) = f k
 instance QTraversable FoldPath where
-  qtraverse f = getApQ . qfoldMap (ApQ . fmap qsingle . f)
+  qtraverse f = runCayley . qfoldMap (Cayley . fmap qsingle . f)
 instance QPointed FoldPath where qsingle p = FoldPath $ \ k -> k p
 instance QMonad FoldPath where qjoin (FoldPath f) = f id
 instance CFree FoldPath

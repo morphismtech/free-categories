@@ -33,6 +33,10 @@ module Data.Quiver.Functor
   ) where
 
 import Control.Category
+import Data.Bifunctor.Product
+import Data.Profunctor.Cayley
+import Data.Profunctor.Composition
+import Data.Profunctor.Ran
 import Data.Quiver
 import Prelude hiding (id, (.))
 
@@ -43,22 +47,22 @@ prop> qmap (g . f) = qmap g . qmap f
 -}
 class QFunctor c where
   qmap :: (forall x y. p x y -> q x y) -> c p x y -> c q x y
-instance QFunctor (ProductQ p) where qmap f (ProductQ p q) = ProductQ p (f q)
+instance QFunctor (Product p) where qmap f (Pair p q) = Pair p (f q)
 instance QFunctor (HomQ p) where qmap g (HomQ f) = HomQ (g . f)
-instance Functor t => QFunctor (ApQ t) where qmap f (ApQ t) = ApQ (f <$> t)
+instance Functor t => QFunctor (Cayley t) where qmap f (Cayley t) = Cayley (f <$> t)
 instance QFunctor OpQ where qmap f = OpQ . f . getOpQ
 instance QFunctor IsoQ where qmap f (IsoQ u d) = IsoQ (f u) (f d)
 instance QFunctor IQ where qmap f = IQ . f . getIQ
-instance QFunctor (ComposeQ p) where qmap f (ComposeQ p q) = ComposeQ p (f q)
-instance QFunctor (LeftQ p) where qmap g (LeftQ f) = LeftQ (g . f)
-instance QFunctor (RightQ p) where qmap g (RightQ f) = RightQ (g . f)
+instance QFunctor (Procompose p) where qmap f (Procompose p q) = Procompose p (f q)
+instance QFunctor (Ran p) where qmap g (Ran f) = Ran (g . f)
+instance QFunctor (Rift p) where qmap g (Rift f) = Rift (g . f)
 
 {- | Embed a single quiver arrow with `qsingle`.-}
 class QFunctor c => QPointed c where qsingle :: p x y -> c p x y
 instance QPointed (HomQ p) where qsingle q = HomQ (const q)
-instance Applicative t => QPointed (ApQ t) where qsingle = ApQ . pure
+instance Applicative t => QPointed (Cayley t) where qsingle = Cayley . pure
 instance QPointed IQ where qsingle = IQ
-instance Category p => QPointed (ComposeQ p) where qsingle = ComposeQ id
+instance Category p => QPointed (Procompose p) where qsingle = Procompose id
 
 {- | Generalizing `Foldable` from `Monoid`s to `Category`s.
 
@@ -82,7 +86,7 @@ class QFunctor c => QFoldable c where
   prop> qfoldr (?) q (p1 :>> p2 :>> ... :>> pn :>> Done) == p1 ? (p2 ? ... (pn ? q) ...)
   -}
   qfoldr :: (forall x y z . p x y -> q y z -> q x z) -> q y z -> c p x y -> q x z
-  qfoldr (?) q c = getRightQ (qfoldMap (\ x -> RightQ (\ y -> x ? y)) c) q
+  qfoldr (?) q c = runRift (qfoldMap (\ x -> Rift (\ y -> x ? y)) c) q
   {- | Left-associative fold of a structure.
 
   In the case of `Control.Category.Free.Path`s,
@@ -94,7 +98,7 @@ class QFunctor c => QFoldable c where
   prop> qfoldl (?) q (p1 :>> p2 :>> ... :>> pn :>> Done) == (... ((q ? p1) ? p2) ? ...) ? pn
   -}
   qfoldl :: (forall x y z . q x y -> p y z -> q x z) -> q x y -> c p y z -> q x z
-  qfoldl (?) q c = getLeftQ (qfoldMap (\ x -> LeftQ (\ y -> y ? x)) c) q
+  qfoldl (?) q c = runRan (qfoldMap (\ x -> Ran (\ y -> y ? x)) c) q
   {- | Map each element of the structure to a `Monoid`,
   and combine the results.-}
   qtoMonoid :: Monoid m => (forall x y. p x y -> m) -> c p x y -> m
@@ -107,8 +111,8 @@ class QFunctor c => QFoldable c where
   qtraverse_
     :: (Applicative m, Category q)
     => (forall x y. p x y -> m (q x y)) -> c p x y -> m (q x y)
-  qtraverse_ f = getApQ . qfoldMap (ApQ . f)
-instance QFoldable (ProductQ p) where qfoldMap f (ProductQ _ q) = f q
+  qtraverse_ f = runCayley . qfoldMap (Cayley . f)
+instance QFoldable (Product p) where qfoldMap f (Pair _ q) = f q
 instance QFoldable IQ where qfoldMap f (IQ c) = f c
 
 {- | Generalizing `Traversable` to quivers.-}
@@ -118,8 +122,8 @@ class QFoldable c => QTraversable c where
   qtraverse
     :: Applicative m
     => (forall x y. p x y -> m (q x y)) -> c p x y -> m (c q x y)
-instance QTraversable (ProductQ p) where
-  qtraverse f (ProductQ p q) = ProductQ p <$> f q
+instance QTraversable (Product p) where
+  qtraverse f (Pair p q) = Pair p <$> f q
 instance QTraversable IQ where qtraverse f (IQ c) = IQ <$> f c
 
 {- | Generalize `Monad` to quivers.
@@ -143,10 +147,10 @@ class (QFunctor c, QPointed c) => QMonad c where
   {-# MINIMAL qjoin | qbind #-}
 instance QMonad (HomQ p) where
   qjoin (HomQ q) = HomQ (\p -> getHomQ (q p) p)
-instance Monad t => QMonad (ApQ t) where
-  qbind f (ApQ t) = ApQ $ do
+instance Monad t => QMonad (Cayley t) where
+  qbind f (Cayley t) = Cayley $ do
     p <- t
-    getApQ $ f p
+    runCayley $ f p
 instance QMonad IQ where qjoin = getIQ
-instance Category p => QMonad (ComposeQ p) where
-  qjoin (ComposeQ yz (ComposeQ xy q)) = ComposeQ (yz . xy) q
+instance Category p => QMonad (Procompose p) where
+  qjoin (Procompose yz (Procompose xy q)) = Procompose (yz . xy) q
