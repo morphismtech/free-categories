@@ -25,14 +25,12 @@ analagous to that for Haskell types.
 #-}
 
 module Data.Quiver.Functor
-  ( QFunctor (..)
-  , QPointed (..)
-  , QFoldable (..)
+  ( QFoldable (..)
   , QTraversable (..)
-  , QMonad (..)
   ) where
 
 import Control.Category
+import Data.Bifunctor.Functor
 import Data.Bifunctor.Product
 import Data.Profunctor.Cayley
 import Data.Profunctor.Composition
@@ -40,35 +38,19 @@ import Data.Profunctor.Ran
 import Data.Quiver
 import Prelude hiding (id, (.))
 
-{- | An endfunctor of quivers.
-
-prop> qmap id = id
-prop> qmap (g . f) = qmap g . qmap f
--}
-class QFunctor c where
-  qmap :: (forall x y. p x y -> q x y) -> c p x y -> c q x y
-instance QFunctor (Product p) where qmap f (Pair p q) = Pair p (f q)
-instance QFunctor (HomQ p) where qmap g (HomQ f) = HomQ (g . f)
-instance Functor t => QFunctor (Cayley t) where qmap f (Cayley t) = Cayley (f <$> t)
-instance QFunctor OpQ where qmap f = OpQ . f . getOpQ
-instance QFunctor IsoQ where qmap f (IsoQ u d) = IsoQ (f u) (f d)
-instance QFunctor IQ where qmap f = IQ . f . getIQ
-instance QFunctor (Procompose p) where qmap f (Procompose p q) = Procompose p (f q)
-instance QFunctor (Ran p) where qmap g (Ran f) = Ran (g . f)
-instance QFunctor (Rift p) where qmap g (Rift f) = Rift (g . f)
-
-{- | Embed a single quiver arrow with `qsingle`.-}
-class QFunctor c => QPointed c where qsingle :: p x y -> c p x y
-instance QPointed (HomQ p) where qsingle q = HomQ (const q)
-instance Applicative t => QPointed (Cayley t) where qsingle = Cayley . pure
-instance QPointed IQ where qsingle = IQ
-instance Category p => QPointed (Procompose p) where qsingle = Procompose id
+instance Functor t => BifunctorFunctor (Cayley t) where bifmap f (Cayley t) = Cayley (f <$> t)
+instance BifunctorFunctor OpQ where bifmap f = OpQ . f . getOpQ
+instance BifunctorFunctor IsoQ where bifmap f (IsoQ u d) = IsoQ (f u) (f d)
+instance BifunctorFunctor IQ where bifmap f = IQ . f . getIQ
+instance BifunctorFunctor (Procompose p) where bifmap f (Procompose p q) = Procompose p (f q)
+instance BifunctorFunctor (Ran p) where bifmap g (Ran f) = Ran (g . f)
+instance BifunctorFunctor (Rift p) where bifmap g (Rift f) = Rift (g . f)
 
 {- | Generalizing `Foldable` from `Monoid`s to `Category`s.
 
-prop> qmap f = qfoldMap (qsingle . f)
+prop> bifmap f = qfoldMap (bireturn . f)
 -}
-class QFunctor c => QFoldable c where
+class BifunctorFunctor c => QFoldable c where
   {- | Map each element of the structure to a `Category`,
   and combine the results.-}
   qfoldMap :: Category q => (forall x y. p x y -> q x y) -> c p x y -> q x y
@@ -126,31 +108,17 @@ instance QTraversable (Product p) where
   qtraverse f (Pair p q) = Pair p <$> f q
 instance QTraversable IQ where qtraverse f (IQ c) = IQ <$> f c
 
-{- | Generalize `Monad` to quivers.
-
-Associativity and left and right identity laws hold.
-
-prop> qjoin . qjoin = qjoin . qmap qjoin
-prop> qjoin . qsingle = id
-prop> qjoin . qmap qsingle = id
-
-The functions `qbind` and `qjoin` are related as
-
-prop> qjoin = qbind id
-prop> qbind f p = qjoin (qmap f p)
--}
-class (QFunctor c, QPointed c) => QMonad c where
-  qjoin :: c (c p) x y -> c p x y
-  qjoin = qbind id
-  qbind :: (forall x y. p x y -> c q x y) -> c p x y -> c q x y
-  qbind f p = qjoin (qmap f p)
-  {-# MINIMAL qjoin | qbind #-}
-instance QMonad (HomQ p) where
-  qjoin (HomQ q) = HomQ (\p -> getHomQ (q p) p)
-instance Monad t => QMonad (Cayley t) where
-  qbind f (Cayley t) = Cayley $ do
+instance BifunctorMonad (HomQ p) where
+  bijoin (HomQ q) = HomQ (\p -> getHomQ (q p) p)
+  bireturn q = HomQ (const q)
+instance Monad t => BifunctorMonad (Cayley t) where
+  bibind f (Cayley t) = Cayley $ do
     p <- t
     runCayley $ f p
-instance QMonad IQ where qjoin = getIQ
-instance Category p => QMonad (Procompose p) where
-  qjoin (Procompose yz (Procompose xy q)) = Procompose (yz . xy) q
+  bireturn = Cayley . pure
+instance BifunctorMonad IQ where
+  bijoin = getIQ
+  bireturn = IQ
+instance Category p => BifunctorMonad (Procompose p) where
+  bijoin (Procompose yz (Procompose xy q)) = Procompose (yz . xy) q
+  bireturn = Procompose id

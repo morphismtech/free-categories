@@ -27,6 +27,7 @@ module Data.Quiver.Bifunctor
   , QClosed (..)
   ) where
 
+import Data.Bifunctor.Functor
 import Data.Bifunctor.Product
 import Data.Profunctor.Composition
 import Data.Profunctor.Ran
@@ -38,10 +39,10 @@ covariant in both its arguments.
 
 prop> qbimap id id = id
 prop> qbimap (g . f) (i . h) = qbimap g i . qbimap f h
-prop> qbimap id f = qmap f
+prop> qbimap id f = bifmap f
 prop> qbimap f id = qlmap f
 -}
-class (forall q. QFunctor (prod q)) => QBifunctor prod where
+class (forall q. BifunctorFunctor (prod q)) => QBifunctor prod where
   qbimap
     :: (forall x y. p x y -> p' x y)
     -> (forall x y. q x y -> q' x y)
@@ -61,10 +62,10 @@ and covariant in its second argument.
 
 prop> qdimap id id = id
 prop> qdimap (g . f) (i . h) = qdimap f i . qdimap g h
-prop> qdimap id f = qmap f
+prop> qdimap id f = bifmap f
 prop> qdimap f id = qpremap f
 -}
-class (forall q. QFunctor (hom q)) => QProfunctor hom where
+class (forall q. BifunctorFunctor (hom q)) => QProfunctor hom where
   qdimap
     :: (forall x y. p' x y -> p x y)
     -> (forall x y. q x y -> q' x y)
@@ -96,11 +97,11 @@ prop> qelim2 . qintro2 = id
 
 that satisfy the pentagon equation,
 
-prop> qmap qassoc . qassoc . qlmap qassoc = qassoc . qassoc
+prop> bifmap qassoc . qassoc . qlmap qassoc = qassoc . qassoc
 
 and the triangle equation,
 
-prop> qmap qelim1 . qassoc = qlmap qelim2
+prop> bifmap qelim1 . qassoc = qlmap qelim2
 -}
 class QBifunctor prod => QMonoidal prod unit | prod -> unit where
   qintro1 :: p x y -> prod unit p x y
@@ -138,8 +139,8 @@ prop> qflurry . qunflurry = id
 
 prop> qlev . qlmap (qcurry f) = f
 prop> qcurry (qlev . qlmap g) = g
-prop> qrev . qmap (qflurry f) = f
-prop> qflurry (qrev . qmap g) = g
+prop> qrev . bifmap (qflurry f) = f
+prop> qflurry (qrev . bifmap g) = g
 -}
 class (QBifunctor prod, QProfunctor lhom, QProfunctor rhom)
   => QClosed prod lhom rhom | prod -> lhom, prod -> rhom where

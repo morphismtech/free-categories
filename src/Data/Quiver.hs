@@ -39,7 +39,7 @@ module Data.Quiver
   ) where
 
 import Control.Category
-import Control.Monad (join)
+import Data.Bifunctor.Functor
 import Prelude hiding (id, (.))
 
 {- | The identity functor on quivers. -}
@@ -86,6 +86,7 @@ instance Monoid m => Category (KQ m) where
 (https://ncatlab.org/nlab/show/internal+hom)
 of the category of quivers.-}
 newtype HomQ p q x y = HomQ { getHomQ :: p x y -> q x y }
+instance BifunctorFunctor (HomQ p) where bifmap g (HomQ f) = HomQ (g . f)
 
 {- | A term in @ReflQ r x y@ observes the equality @x ~ y@.
 

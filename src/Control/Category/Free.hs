@@ -15,10 +15,10 @@ of the category of quivers with,
   * @t (g . f) = t g . t f@
 
 Thus, a functor from quivers to `Category`s
-has @(QFunctor c, forall p. Category (c p))@ with.
+has @(BifunctorFunctor c, forall p. Category (c p))@ with.
 
-prop> qmap f id = id
-prop> qmap f (q . p) = qmap f q . qmap f p
+prop> bifmap f id = id
+prop> bifmap f (q . p) = bifmap f q . bifmap f p
 
 The [free category functor](https://ncatlab.org/nlab/show/free+category)
 from quivers to `Category`s may be defined up to isomorphism as
@@ -49,7 +49,7 @@ module Control.Category.Free
   ( Path (..)
   , pattern (:<<)
   , FoldPath (..)
-  , CFree (..)
+  , CFree
   , toPath
   , reversePath
   , beforeAll
@@ -57,11 +57,11 @@ module Control.Category.Free
   , Category (..)
   ) where
 
+import Data.Bifunctor.Functor
 import Data.Profunctor.Cayley
 import Data.Quiver
 import Data.Quiver.Functor
 import Control.Category
-import Control.Monad (join)
 import Prelude hiding (id, (.))
 
 {- | A `Path` with steps in @p@ is a singly linked list of
@@ -92,9 +92,9 @@ instance Category (Path p) where
   (.) path = \case
     Done -> path
     p :>> ps -> p :>> (ps >>> path)
-instance QFunctor Path where
-  qmap _ Done = Done
-  qmap f (p :>> ps) = f p :>> qmap f ps
+instance BifunctorFunctor Path where
+  bifmap _ Done = Done
+  bifmap f (p :>> ps) = f p :>> bifmap f ps
 instance QFoldable Path where
   qfoldMap _ Done = id
   qfoldMap f (p :>> ps) = f p >>> qfoldMap f ps
@@ -107,8 +107,9 @@ instance QFoldable Path where
 instance QTraversable Path where
   qtraverse _ Done = pure Done
   qtraverse f (p :>> ps) = (:>>) <$> f p <*> qtraverse f ps
-instance QPointed Path where qsingle p = p :>> Done
-instance QMonad Path where qjoin = qfold
+instance BifunctorMonad Path where
+  bireturn p = p :>> Done
+  bijoin = qfold
 instance CFree Path
 
 {- | Encodes a path as its `qfoldMap` function.-}
@@ -120,12 +121,13 @@ instance x ~ y => Monoid (FoldPath p x y) where mempty = id
 instance Category (FoldPath p) where
   id = FoldPath $ \ _ -> id
   FoldPath g . FoldPath f = FoldPath $ \ k -> g k . f k
-instance QFunctor FoldPath where qmap f = qfoldMap (qsingle . f)
+instance BifunctorFunctor FoldPath where bifmap f = qfoldMap (bireturn . f)
 instance QFoldable FoldPath where qfoldMap k (FoldPath f) = f k
 instance QTraversable FoldPath where
-  qtraverse f = runCayley . qfoldMap (Cayley . fmap qsingle . f)
-instance QPointed FoldPath where qsingle p = FoldPath $ \ k -> k p
-instance QMonad FoldPath where qjoin (FoldPath f) = f id
+  qtraverse f = runCayley . qfoldMap (Cayley . fmap bireturn . f)
+instance BifunctorMonad FoldPath where
+  bireturn p = FoldPath $ \ k -> k p
+  bijoin (FoldPath f) = f id
 instance CFree FoldPath
 
 {- | Unpacking the definition of a left adjoint to the forgetful functor
@@ -135,11 +137,11 @@ from `Category`s to quivers, any
 
 factors uniquely through the free `Category` @c@ as
 
-prop> qfoldMap f . qsingle = f
+prop> qfoldMap f . bireturn = f
 -}
 class
-  ( QPointed c
-  , QFoldable c
+  ( BifunctorMonad c
+  , QTraversable c
   , forall p. Category (c p)
   ) => CFree c where
 
@@ -148,20 +150,20 @@ It is the unique isomorphism which exists
 between any two `CFree` functors.
 -}
 toPath :: (QFoldable c, CFree path) => c p x y -> path p x y
-toPath = qfoldMap qsingle
+toPath = qfoldMap bireturn
 
 {- | Reverse all the arrows in a path. -}
 reversePath :: (QFoldable c, CFree path) => c p x y -> path (OpQ p) y x
-reversePath = getOpQ . qfoldMap (OpQ . qsingle . OpQ)
+reversePath = getOpQ . qfoldMap (OpQ . bireturn . OpQ)
 
 {- | Insert a given loop before each step. -}
 beforeAll
   :: (QFoldable c, CFree path)
   => (forall x. p x x) -> c p x y -> path p x y
-beforeAll sep = qfoldMap (\p -> qsingle sep >>> qsingle p)
+beforeAll sep = qfoldMap (\p -> bireturn sep >>> bireturn p)
 
 {- | Insert a given loop before each step. -}
 afterAll
   :: (QFoldable c, CFree path)
   => (forall x. p x x) -> c p x y -> path p x y
-afterAll sep = qfoldMap (\p -> qsingle p >>> qsingle sep)
+afterAll sep = qfoldMap (\p -> bireturn p >>> bireturn sep)

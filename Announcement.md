@@ -128,11 +128,11 @@ endofunctor typeclasses, which may be used to provide a familiar
 API for the free category functor.
 
 ```Haskell
-class QFunctor c where
-  qmap :: (forall x y. p x y -> q x y) -> c p x y -> c q x y
-class QFunctor c => QPointed c where
-  qsingle :: p x y -> c p x y
-class QFunctor c => QFoldable c where
+class BifunctorFunctor c where
+  bifmap :: (forall x y. p x y -> q x y) -> c p x y -> c q x y
+class BifunctorFunctor c => QPointed c where
+  bireturn :: p x y -> c p x y
+class BifunctorFunctor c => QFoldable c where
   qfoldMap :: Category q => (forall x y. p x y -> q x y) -> c p x y -> q x y
 ```
 
@@ -152,7 +152,7 @@ such that
 
 and that these functions characterize `c` up to isomorphism as a universal property.
 
-But, `u` and `i` have the same type signatures as `qfoldMap` and `qsingle`.
+But, `u` and `i` have the same type signatures as `qfoldMap` and `bireturn`.
 So, you can characterize the free category abstractly as a constraint.
 
 ```Haskell
