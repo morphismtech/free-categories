@@ -25,46 +25,32 @@ analagous to that for Haskell types.
 #-}
 
 module Data.Quiver.Functor
-  ( QFunctor (..)
-  , QPointed (..)
-  , QFoldable (..)
+  ( QFoldable (..)
   , QTraversable (..)
-  , QMonad (..)
   ) where
 
 import Control.Category
+import Data.Bifunctor.Functor
+import Data.Bifunctor.Product
+import Data.Profunctor.Cayley
+import Data.Profunctor.Composition
+import Data.Profunctor.Ran
 import Data.Quiver
 import Prelude hiding (id, (.))
 
-{- | An endfunctor of quivers.
-
-prop> qmap id = id
-prop> qmap (g . f) = qmap g . qmap f
--}
-class QFunctor c where
-  qmap :: (forall x y. p x y -> q x y) -> c p x y -> c q x y
-instance QFunctor (ProductQ p) where qmap f (ProductQ p q) = ProductQ p (f q)
-instance QFunctor (HomQ p) where qmap g (HomQ f) = HomQ (g . f)
-instance Functor t => QFunctor (ApQ t) where qmap f (ApQ t) = ApQ (f <$> t)
-instance QFunctor OpQ where qmap f = OpQ . f . getOpQ
-instance QFunctor IsoQ where qmap f (IsoQ u d) = IsoQ (f u) (f d)
-instance QFunctor IQ where qmap f = IQ . f . getIQ
-instance QFunctor (ComposeQ p) where qmap f (ComposeQ p q) = ComposeQ p (f q)
-instance QFunctor (LeftQ p) where qmap g (LeftQ f) = LeftQ (g . f)
-instance QFunctor (RightQ p) where qmap g (RightQ f) = RightQ (g . f)
-
-{- | Embed a single quiver arrow with `qsingle`.-}
-class QFunctor c => QPointed c where qsingle :: p x y -> c p x y
-instance QPointed (HomQ p) where qsingle q = HomQ (const q)
-instance Applicative t => QPointed (ApQ t) where qsingle = ApQ . pure
-instance QPointed IQ where qsingle = IQ
-instance Category p => QPointed (ComposeQ p) where qsingle = ComposeQ id
+instance Functor t => BifunctorFunctor (Cayley t) where bifmap f (Cayley t) = Cayley (f <$> t)
+instance BifunctorFunctor OpQ where bifmap f = OpQ . f . getOpQ
+instance BifunctorFunctor IsoQ where bifmap f (IsoQ u d) = IsoQ (f u) (f d)
+instance BifunctorFunctor IQ where bifmap f = IQ . f . getIQ
+instance BifunctorFunctor (Procompose p) where bifmap f (Procompose p q) = Procompose p (f q)
+instance BifunctorFunctor (Ran p) where bifmap g (Ran f) = Ran (g . f)
+instance BifunctorFunctor (Rift p) where bifmap g (Rift f) = Rift (g . f)
 
 {- | Generalizing `Foldable` from `Monoid`s to `Category`s.
 
-prop> qmap f = qfoldMap (qsingle . f)
+prop> bifmap f = qfoldMap (bireturn . f)
 -}
-class QFunctor c => QFoldable c where
+class BifunctorFunctor c => QFoldable c where
   {- | Map each element of the structure to a `Category`,
   and combine the results.-}
   qfoldMap :: Category q => (forall x y. p x y -> q x y) -> c p x y -> q x y
@@ -82,7 +68,7 @@ class QFunctor c => QFoldable c where
   prop> qfoldr (?) q (p1 :>> p2 :>> ... :>> pn :>> Done) == p1 ? (p2 ? ... (pn ? q) ...)
   -}
   qfoldr :: (forall x y z . p x y -> q y z -> q x z) -> q y z -> c p x y -> q x z
-  qfoldr (?) q c = getRightQ (qfoldMap (\ x -> RightQ (\ y -> x ? y)) c) q
+  qfoldr (?) q c = runRift (qfoldMap (\ x -> Rift (\ y -> x ? y)) c) q
   {- | Left-associative fold of a structure.
 
   In the case of `Control.Category.Free.Path`s,
@@ -94,7 +80,7 @@ class QFunctor c => QFoldable c where
   prop> qfoldl (?) q (p1 :>> p2 :>> ... :>> pn :>> Done) == (... ((q ? p1) ? p2) ? ...) ? pn
   -}
   qfoldl :: (forall x y z . q x y -> p y z -> q x z) -> q x y -> c p y z -> q x z
-  qfoldl (?) q c = getLeftQ (qfoldMap (\ x -> LeftQ (\ y -> y ? x)) c) q
+  qfoldl (?) q c = runRan (qfoldMap (\ x -> Ran (\ y -> y ? x)) c) q
   {- | Map each element of the structure to a `Monoid`,
   and combine the results.-}
   qtoMonoid :: Monoid m => (forall x y. p x y -> m) -> c p x y -> m
@@ -107,8 +93,8 @@ class QFunctor c => QFoldable c where
   qtraverse_
     :: (Applicative m, Category q)
     => (forall x y. p x y -> m (q x y)) -> c p x y -> m (q x y)
-  qtraverse_ f = getApQ . qfoldMap (ApQ . f)
-instance QFoldable (ProductQ p) where qfoldMap f (ProductQ _ q) = f q
+  qtraverse_ f = runCayley . qfoldMap (Cayley . f)
+instance QFoldable (Product p) where qfoldMap f (Pair _ q) = f q
 instance QFoldable IQ where qfoldMap f (IQ c) = f c
 
 {- | Generalizing `Traversable` to quivers.-}
@@ -118,35 +104,21 @@ class QFoldable c => QTraversable c where
   qtraverse
     :: Applicative m
     => (forall x y. p x y -> m (q x y)) -> c p x y -> m (c q x y)
-instance QTraversable (ProductQ p) where
-  qtraverse f (ProductQ p q) = ProductQ p <$> f q
+instance QTraversable (Product p) where
+  qtraverse f (Pair p q) = Pair p <$> f q
 instance QTraversable IQ where qtraverse f (IQ c) = IQ <$> f c
 
-{- | Generalize `Monad` to quivers.
-
-Associativity and left and right identity laws hold.
-
-prop> qjoin . qjoin = qjoin . qmap qjoin
-prop> qjoin . qsingle = id
-prop> qjoin . qmap qsingle = id
-
-The functions `qbind` and `qjoin` are related as
-
-prop> qjoin = qbind id
-prop> qbind f p = qjoin (qmap f p)
--}
-class (QFunctor c, QPointed c) => QMonad c where
-  qjoin :: c (c p) x y -> c p x y
-  qjoin = qbind id
-  qbind :: (forall x y. p x y -> c q x y) -> c p x y -> c q x y
-  qbind f p = qjoin (qmap f p)
-  {-# MINIMAL qjoin | qbind #-}
-instance QMonad (HomQ p) where
-  qjoin (HomQ q) = HomQ (\p -> getHomQ (q p) p)
-instance Monad t => QMonad (ApQ t) where
-  qbind f (ApQ t) = ApQ $ do
+instance BifunctorMonad (HomQ p) where
+  bijoin (HomQ q) = HomQ (\p -> getHomQ (q p) p)
+  bireturn q = HomQ (const q)
+instance Monad t => BifunctorMonad (Cayley t) where
+  bibind f (Cayley t) = Cayley $ do
     p <- t
-    getApQ $ f p
-instance QMonad IQ where qjoin = getIQ
-instance Category p => QMonad (ComposeQ p) where
-  qjoin (ComposeQ yz (ComposeQ xy q)) = ComposeQ (yz . xy) q
+    runCayley $ f p
+  bireturn = Cayley . pure
+instance BifunctorMonad IQ where
+  bijoin = getIQ
+  bireturn = IQ
+instance Category p => BifunctorMonad (Procompose p) where
+  bijoin (Procompose yz (Procompose xy q)) = Procompose (yz . xy) q
+  bireturn = Procompose id

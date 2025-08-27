@@ -6,7 +6,7 @@ Maintainer: eitan@morphism.tech
 Stability: experimental
 
 The category of quivers forms a closed monoidal
-category in two ways, under `ProductQ` or `ComposeQ`.
+category in two ways, under `Product` or `Procompose`.
 The relations between these and their adjoints can be
 characterized by typeclasses below.
 -}
@@ -27,6 +27,10 @@ module Data.Quiver.Bifunctor
   , QClosed (..)
   ) where
 
+import Data.Bifunctor.Functor
+import Data.Bifunctor.Product
+import Data.Profunctor.Composition
+import Data.Profunctor.Ran
 import Data.Quiver
 import Data.Quiver.Functor
 
@@ -35,10 +39,10 @@ covariant in both its arguments.
 
 prop> qbimap id id = id
 prop> qbimap (g . f) (i . h) = qbimap g i . qbimap f h
-prop> qbimap id f = qmap f
+prop> qbimap id f = bifmap f
 prop> qbimap f id = qlmap f
 -}
-class (forall q. QFunctor (prod q)) => QBifunctor prod where
+class (forall q. BifunctorFunctor (prod q)) => QBifunctor prod where
   qbimap
     :: (forall x y. p x y -> p' x y)
     -> (forall x y. q x y -> q' x y)
@@ -47,10 +51,10 @@ class (forall q. QFunctor (prod q)) => QBifunctor prod where
     :: (forall x y. p x y -> p' x y)
     -> prod p q x y -> prod p' q x y
   qlmap f = qbimap f id
-instance QBifunctor ProductQ where
-  qbimap f g (ProductQ p q) = ProductQ (f p) (g q)
-instance QBifunctor ComposeQ where
-  qbimap f g (ComposeQ p q) = ComposeQ (f p) (g q)
+instance QBifunctor Product where
+  qbimap f g (Pair p q) = Pair (f p) (g q)
+instance QBifunctor Procompose where
+  qbimap f g (Procompose p q) = Procompose (f p) (g q)
 
 {- | A endo-bifunctor on the category of quivers,
 contravariant in its first argument,
@@ -58,10 +62,10 @@ and covariant in its second argument.
 
 prop> qdimap id id = id
 prop> qdimap (g . f) (i . h) = qdimap f i . qdimap g h
-prop> qdimap id f = qmap f
+prop> qdimap id f = bifmap f
 prop> qdimap f id = qpremap f
 -}
-class (forall q. QFunctor (hom q)) => QProfunctor hom where
+class (forall q. BifunctorFunctor (hom q)) => QProfunctor hom where
   qdimap
     :: (forall x y. p' x y -> p x y)
     -> (forall x y. q x y -> q' x y)
@@ -71,8 +75,8 @@ class (forall q. QFunctor (hom q)) => QProfunctor hom where
     -> hom p q x y -> hom p' q x y
   qpremap f = qdimap f id
 instance QProfunctor HomQ where qdimap f h (HomQ g) = HomQ (h . g . f)
-instance QProfunctor LeftQ where qdimap f h (LeftQ g) = LeftQ (h . g . f)
-instance QProfunctor RightQ where qdimap f h (RightQ g) = RightQ (h . g . f)
+instance QProfunctor Ran where qdimap f h (Ran g) = Ran (h . g . f)
+instance QProfunctor Rift where qdimap f h (Rift g) = Rift (h . g . f)
 
 {-| A [monoidal category]
 (https://ncatlab.org/nlab/show/monoidal+category)
@@ -93,11 +97,11 @@ prop> qelim2 . qintro2 = id
 
 that satisfy the pentagon equation,
 
-prop> qmap qassoc . qassoc . qlmap qassoc = qassoc . qassoc
+prop> bifmap qassoc . qassoc . qlmap qassoc = qassoc . qassoc
 
 and the triangle equation,
 
-prop> qmap qelim1 . qassoc = qlmap qelim2
+prop> bifmap qelim1 . qassoc = qlmap qelim2
 -}
 class QBifunctor prod => QMonoidal prod unit | prod -> unit where
   qintro1 :: p x y -> prod unit p x y
@@ -106,36 +110,37 @@ class QBifunctor prod => QMonoidal prod unit | prod -> unit where
   qelim2 :: prod p unit x y -> p x y
   qassoc :: prod (prod p q) r x y -> prod p (prod q r) x y
   qdisassoc :: prod p (prod q r) x y -> prod (prod p q) r x y
-instance QMonoidal ProductQ (KQ ()) where
-  qintro1 p = ProductQ (KQ ()) p
-  qintro2 p = ProductQ p (KQ ())
-  qelim1 (ProductQ _ p) = p
-  qelim2 (ProductQ p _) = p
-  qassoc (ProductQ (ProductQ p q) r) = ProductQ p (ProductQ q r)
-  qdisassoc (ProductQ p (ProductQ q r)) = ProductQ (ProductQ p q) r
-instance QMonoidal ComposeQ (ReflQ ()) where
-  qintro1 p = ComposeQ (ReflQ ()) p
-  qintro2 p = ComposeQ p (ReflQ ())
-  qelim1 (ComposeQ (ReflQ ()) p) = p
-  qelim2 (ComposeQ p (ReflQ ())) = p
-  qassoc (ComposeQ (ComposeQ p q) r) = ComposeQ p (ComposeQ q r)
-  qdisassoc (ComposeQ p (ComposeQ q r)) = ComposeQ (ComposeQ p q) r
+instance QMonoidal Product (KQ ()) where
+  qintro1 p = Pair (KQ ()) p
+  qintro2 p = Pair p (KQ ())
+  qelim1 (Pair _ p) = p
+  qelim2 (Pair p _) = p
+  qassoc (Pair (Pair p q) r) = Pair p (Pair q r)
+  qdisassoc (Pair p (Pair q r)) = Pair (Pair p q) r
+instance QMonoidal Procompose (ReflQ ()) where
+  qintro1 p = Procompose (ReflQ ()) p
+  qintro2 p = Procompose p (ReflQ ())
+  qelim1 (Procompose (ReflQ ()) p) = p
+  qelim2 (Procompose p (ReflQ ())) = p
+  qassoc (Procompose (Procompose p q) r) = Procompose p (Procompose q r)
+  qdisassoc (Procompose p (Procompose q r)) = Procompose (Procompose p q) r
 
 {- | A [(bi-)closed monoidal category]
 (https://ncatlab.org/nlab/show/closed+monoidal+category)
 is one for which the products
 @prod _ p@ and @prod p _@ both have right adjoint functors,
-the left and right residuals @lhom p@ and @rhom p@.
-If @prod@ is symmetric then the left and right residuals
-coincide as the internal hom.
+the left and right [residuals](https://ncatlab.org/nlab/show/residual)
+@lhom p@ and @rhom p@. If @prod@ is symmetric then the
+left and right residuals coincide as the
+[internal hom](https://ncatlab.org/nlab/show/internal+hom).
 
 prop> qcurry  . quncurry = id
 prop> qflurry . qunflurry = id
 
 prop> qlev . qlmap (qcurry f) = f
 prop> qcurry (qlev . qlmap g) = g
-prop> qrev . qmap (qflurry f) = f
-prop> qflurry (qrev . qmap g) = g
+prop> qrev . bifmap (qflurry f) = f
+prop> qflurry (qrev . bifmap g) = g
 -}
 class (QBifunctor prod, QProfunctor lhom, QProfunctor rhom)
   => QClosed prod lhom rhom | prod -> lhom, prod -> rhom where
@@ -145,17 +150,17 @@ class (QBifunctor prod, QProfunctor lhom, QProfunctor rhom)
     quncurry :: (forall x y. p x y -> lhom q r x y) -> prod p q x y -> r x y
     qflurry :: (forall x y. prod p q x y -> r x y) -> q x y -> rhom p r x y
     qunflurry :: (forall x y. q x y -> rhom p r x y) -> prod p q x y -> r x y
-instance QClosed ProductQ HomQ HomQ where
-  qlev (ProductQ (HomQ pq) p) = pq p
-  qrev (ProductQ p (HomQ pq)) = pq p
-  qcurry f p = HomQ (\q -> f (ProductQ p q))
-  quncurry f (ProductQ p q) = getHomQ (f p) q
-  qflurry f q = HomQ (\p -> f (ProductQ p q))
-  qunflurry f (ProductQ p q) = getHomQ (f q) p
-instance QClosed ComposeQ LeftQ RightQ where
-  qlev (ComposeQ (LeftQ pq) p) = pq p
-  qrev (ComposeQ p (RightQ pq)) = pq p
-  qcurry f p = LeftQ (\q -> f (ComposeQ p q))
-  quncurry f (ComposeQ p q) = getLeftQ (f p) q
-  qflurry f q = RightQ (\p -> f (ComposeQ p q))
-  qunflurry f (ComposeQ p q) = getRightQ (f q) p
+instance QClosed Product HomQ HomQ where
+  qlev (Pair (HomQ pq) p) = pq p
+  qrev (Pair p (HomQ pq)) = pq p
+  qcurry f p = HomQ (\q -> f (Pair p q))
+  quncurry f (Pair p q) = getHomQ (f p) q
+  qflurry f q = HomQ (\p -> f (Pair p q))
+  qunflurry f (Pair p q) = getHomQ (f q) p
+instance QClosed Procompose Ran Rift where
+  qlev (Procompose (Ran pq) p) = pq p
+  qrev (Procompose p (Rift pq)) = pq p
+  qcurry f p = Ran (\q -> f (Procompose p q))
+  quncurry f (Procompose p q) = runRan (f p) q
+  qflurry f q = Rift (\p -> f (Procompose p q))
+  qunflurry f (Procompose p q) = runRift (f q) p
